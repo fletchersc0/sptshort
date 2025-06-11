@@ -32,7 +32,7 @@
       text-align:center;
     }
     button,select,
-    input[type=text],input[type=number]{
+    input[type=text]{
       font-size:1rem;
       padding:.5rem 1rem;
       margin:.3rem;
@@ -48,7 +48,6 @@
       background:#333;
       border-color:#555;
     }
-    .hidden{ display:none; }
     audio{ display:none; }
 
     /* ---------- Experiment‑specific helpers ---------- */
@@ -71,311 +70,309 @@
 <body>
   <div id="stage">Loading stimuli…</div>
 
-  <script>
-  /* ===================================================================
-   * SERIAL‑POSITION MEMORY TASK  (Pure HTML + Vanilla JS)
-   *   – Study (20 audio sentences)            – no response
-   *   – Distractor (count high beeps)         – numeric response
-   *   – Test   (40 text sentences OLD/NEW)    – F=OLD  J=NEW
-   *   – Results saved to DataPipe → OSF       – CSV fallback download
-   * =================================================================== */
+<script>
+/* ===================================================================
+ * SERIAL‑POSITION MEMORY TASK  (HTML + Vanilla JS)
+ * – Study (20 audio sentences)            – no response
+ * – Distractor (count high beeps)         – numeric response
+ * – Test   (40 text sentences OLD/NEW)    – F=OLD  J=NEW
+ * – Data sent to DataPipe → OSF           – CSV fallback download
+ * =================================================================== */
 
-  /* ---------------- CONFIG ---------------- */
-  const CONFIG = {
-    experimentName       : 'SerialPosMemory',
-    audioDir             : 'audio',               // audio/*.wav
-    csvFile              : 'stimulus_master.csv', // stimuli list
-    responseKeys         : { old:'f', new:'j' },
-    dataPipeID           : 'qWHxwr6D720q',        // ← your real DataPipe ID
-    fallbackDownload     : true,                  // save CSV locally on failure
-    fixationCrossDuration: 500                    // ms
+/* -------------- CONFIG -------------- */
+const CONFIG = {
+  experimentName       : 'SerialPosMemory',
+  audioDir             : 'audio',               // audio/*.wav
+  csvFile              : 'stimulus_master.csv', // stimuli list
+  responseKeys         : { old:'f', new:'j' },
+  dataPipeID           : 'qWHxwr6D720q',        // ← your real DataPipe ID
+  fallbackDownload     : true,                  // save CSV locally on failure
+  fixationCrossDuration: 500,                   // ms
+
+  /* ★ Fixed column order */
+  masterHeader : [
+    'participant','difficulty','topic','phase',
+    'file','sentence','serialPos',
+    'isOld','serialPosTest','respOld','correct',
+    'trueHigh','resp','corrDistractor','rt'
+  ]
+};
+
+/* -------------- GLOBAL STATE -------------- */
+const state = {
+  participant : '',
+  difficulty  : '',
+  blockOrder  : [],
+  stimuliPool : [],
+  data        : []
+};
+
+const stage      = document.getElementById('stage');
+let   startClock = 0;      // RT timer
+
+/* -------------- UTILITIES -------------- */
+const sleep   = ms => new Promise(r=>setTimeout(r,ms));
+const shuffle = arr=>{
+  for(let i=arr.length-1;i>0;i--){
+    const j=Math.floor(Math.random()*(i+1));
+    [arr[i],arr[j]]=[arr[j],arr[i]];
+  } return arr;
+};
+const randomSample=(arr,n)=>shuffle([...arr]).slice(0,n);
+
+/* ----- audio beep for distractor ----- */
+function beep(freq,dur=0.2){
+  return new Promise(res=>{
+    const ctx=new (window.AudioContext||window.webkitAudioContext)();
+    const osc=ctx.createOscillator();
+    const gain=ctx.createGain();
+    osc.frequency.value=freq;
+    osc.connect(gain); gain.connect(ctx.destination);
+    osc.start();
+    gain.gain.setValueAtTime(1,ctx.currentTime);
+    gain.gain.exponentialRampToValueAtTime(0.0001,ctx.currentTime+dur);
+    osc.stop(ctx.currentTime+dur);
+    setTimeout(()=>{ctx.close();res();},dur*1000);
+  });
+}
+
+/* ----- log → state.data (booleans → 0/1; rt → seconds) ----- */
+function log(row){
+  ['isOld','respOld','correct','corrDistractor']
+    .forEach(k=>{ if(k in row) row[k]=row[k]?1:0; });
+  if('rt' in row && typeof row.rt==='number') row.rt = row.rt/1000;
+  state.data.push(row);
+}
+
+/* ----- array of objects → CSV (fixed header) ----- */
+function toCSV(rows){
+  if (!rows.length) return '';
+  const header = CONFIG.masterHeader;
+  const lines  = [header.join(',')];
+
+  rows.forEach(r=>{
+    const line = header.map(k=>{
+      let cell = (k in r && r[k]!==undefined) ? r[k] : '';
+      cell = String(cell);
+      if (/[",\n\r]/.test(cell))
+        cell = '"' + cell.replace(/"/g,'""') + '"';
+      return cell;
+    }).join(',');
+    lines.push(line);
+  });
+  return lines.join('\n');
+}
+
+/* ----- UPLOAD CSV via DataPipe (JSON wrapper) ----- */
+function uploadCSV(filename,csv){
+  return fetch('https://pipe.jspsych.org/api/data',{
+    method :'POST',
+    headers:{'Content-Type':'application/json'},
+    body   : JSON.stringify({
+      experimentID: CONFIG.dataPipeID,
+      filename    : filename,
+      data        : csv
+    })
+  });
+}
+
+/* ----- Fallback local download ----- */
+function downloadCSV(csv,fn){
+  const blob=new Blob([csv],{type:'text/csv'});
+  const url =URL.createObjectURL(blob);
+  const a   =document.createElement('a');
+  a.href=url; a.download=fn; a.click();
+  URL.revokeObjectURL(url);
+}
+
+/* ----- helper to swap stage HTML ----- */
+const show = html => stage.innerHTML = html;
+
+/* -------------- LOAD STIMULI CSV -------------- */
+async function loadCSV(){
+  const txt = await fetch(CONFIG.csvFile).then(r=>r.text());
+  const lines = txt.trim().split(/\r?\n/);
+  lines.shift();                        // remove header
+
+  lines.forEach(line=>{
+    const comma = line.indexOf(',');
+    if(comma===-1) return;              // skip bad rows
+    const file     = line.slice(0,comma).trim();
+    const sentence = line.slice(comma+1).trim();
+    const m = /(Ch|Cl)(E|H)(\d{2})\.(wav|mp3|ogg)$/i.exec(file);
+    if(!m) return;
+    state.stimuliPool.push({
+      file,
+      sentence,
+      topic : m[1].toLowerCase()==='ch'?'Chess':'Cloud',
+      diff  : m[2].toUpperCase(),
+      idx   : parseInt(m[3],10)
+    });
+  });
+  if(!state.stimuliPool.length)
+    throw new Error('No stimuli loaded – check CSV.');
+}
+
+/* -------------- MAIN FLOW -------------- */
+async function intro(){
+  show(`
+    <h1>${CONFIG.experimentName}</h1>
+    <p>Please enter your Participant ID and difficulty level.</p>
+    <input id="pid" placeholder="Participant ID" />
+    <select id="diff">
+      <option value="E">Easy (E)</option>
+      <option value="H">Hard (H)</option>
+    </select><br>
+    <button id="start">Start</button>
+  `);
+  document.getElementById('start').onclick=()=>{
+    const pid  = document.getElementById('pid').value.trim();
+    const diff = document.getElementById('diff').value;
+    if(!pid){ alert('Please enter an ID'); return; }
+    state.participant = pid;
+    state.difficulty  = diff;
+    state.blockOrder  = shuffle(['Chess','Cloud']);
+    blockLoop(0);
   };
+}
 
-  /* ---------------- GLOBAL STATE ---------------- */
-  const state = {
-    participant : '',
-    difficulty  : '',        // 'E' or 'H'
-    blockOrder  : [],        // e.g. ['Chess','Cloud'] shuffled
-    stimuliPool : [],        // all stimuli rows
-    data        : []         // trial‑level logs
-  };
+/* ----- block loop ----- */
+async function blockLoop(i){
+  if(i>=state.blockOrder.length) return finish();
+  await runBlock(state.blockOrder[i]);
+  blockLoop(i+1);
+}
 
-  const stage      = document.getElementById('stage');
-  let   startClock = 0;      // RT timer
+/* -------------- RUN BLOCK (Study → Distractor → Test) -------------- */
+async function runBlock(topic){
+  const pool = state.stimuliPool
+                .filter(s=>s.topic===topic && s.diff===state.difficulty);
+  if(pool.length<40) throw new Error('Insufficient stimuli');
 
-  /* ---------------- UTILITIES ---------------- */
-  const sleep   = ms => new Promise(r=>setTimeout(r,ms));
-  const shuffle = arr=>{
-    for(let i=arr.length-1;i>0;i--){
-      const j=Math.floor(Math.random()*(i+1));
-      [arr[i],arr[j]]=[arr[j],arr[i]];
-    } return arr;
-  };
-  const randomSample=(arr,n)=>shuffle([...arr]).slice(0,n);
+  const study     = randomSample(pool,20);
+  const newFoils  = randomSample(pool.filter(s=>!study.includes(s)),20);
+  const testList  = shuffle([...study,...newFoils]);
 
-  /* ----- audio beep for distractor ----- */
-  function beep(freq,dur=0.2){
-    return new Promise(res=>{
-      const ctx=new (window.AudioContext||window.webkitAudioContext)();
-      const osc=ctx.createOscillator();
-      const gain=ctx.createGain();
-      osc.frequency.value=freq;
-      osc.connect(gain); gain.connect(ctx.destination);
-      osc.start();
-      gain.gain.setValueAtTime(1,ctx.currentTime);
-      gain.gain.exponentialRampToValueAtTime(0.0001,ctx.currentTime+dur);
-      osc.stop(ctx.currentTime+dur);
-      setTimeout(()=>{ctx.close();res();},dur*1000);
-    });
-  }
-
-  /* ----- log → state.data (booleans → 0/1; rt → seconds) ----- */
-  function log(row){
-    ['isOld','respOld','correct','corrDistractor']
-      .forEach(k=>{ if(k in row) row[k]=row[k]?1:0; });
-    if('rt' in row && typeof row.rt==='number') row.rt = row.rt/1000;
-    state.data.push(row);
-  }
-
-  /* ----- array of objects → CSV string ----- */
-  function toCSV(rows){
-    if(!rows.length) return '';
-    const allKeys = [...new Set(rows.flatMap(r=>Object.keys(r)))];
-
-    const preferred = [
-      'participant','difficulty','topic','phase',
-      'file','sentence','serialPos',
-      'isOld','serialPosTest','respOld','correct',
-      'trueHigh','resp','corrDistractor','rt'
-    ];
-    const header = preferred.filter(k=>allKeys.includes(k))
-                    .concat(allKeys.filter(k=>!preferred.includes(k)));
-    const lines  = [header.join(',')];
-
-    rows.forEach(r=>{
-      const line = header.map(k=>{
-        let cell = r[k] ?? '';
-        cell = String(cell);
-        if(/[",\n\r]/.test(cell))
-          cell = "${cell.replace(/"/g,'""')}";
-        return cell;
-      }).join(',');
-      lines.push(line);
-    });
-    return lines.join('\n');
-  }
-
-  /* ----- UPLOAD CSV to DataPipe (raw CSV ≤5 MB) ----- */
-  function uploadCSV(filename,csv){
-    return fetch('https://pipe.jspsych.org/api/data',{
-      method :'POST',
-      headers:{'Content-Type':'application/json'},
-      body   : JSON.stringify({
-        experimentID: CONFIG.dataPipeID,
-        filename    : filename,
-        data        : csv
-      })
-    });
-  }
-
-  /* ----- Fallback local download ----- */
-  function downloadCSV(csv,fn){
-    const blob=new Blob([csv],{type:'text/csv'});
-    const url =URL.createObjectURL(blob);
-    const a   =document.createElement('a');
-    a.href=url; a.download=fn; a.click();
-    URL.revokeObjectURL(url);
-  }
-
-  /* ----- simple helper to swap stage HTML ----- */
-  const show = html => stage.innerHTML = html;
-
-  /* ---------------- LOAD STIMULI CSV ---------------- */
-  async function loadCSV(){
-    const txt = await fetch(CONFIG.csvFile).then(r=>r.text());
-    const lines = txt.trim().split(/\r?\n/);
-    lines.shift();                        // remove header
-
-    lines.forEach((line,idx)=>{
-      const comma = line.indexOf(',');
-      if(comma===-1) return;              // skip bad rows
-      const file     = line.slice(0,comma).trim();
-      const sentence = line.slice(comma+1).trim();
-      const m = /(Ch|Cl)(E|H)(\d{2})\.(wav|mp3|ogg)$/i.exec(file);
-      if(!m) return;
-      state.stimuliPool.push({
-        file,
-        sentence,
-        topic : m[1].toLowerCase()==='ch'?'Chess':'Cloud',
-        diff  : m[2].toUpperCase(),
-        idx   : parseInt(m[3],10)
-      });
-    });
-    if(!state.stimuliPool.length)
-      throw new Error('No stimuli loaded ‑ check CSV.');
-  }
-
-  /* ---------------- MAIN FLOW ---------------- */
-  async function intro(){
-    show(
-      <h1>${CONFIG.experimentName}</h1>
-      <p>Please enter your Participant ID and difficulty level.</p>
-      <input id="pid" placeholder="Participant ID" />
-      <select id="diff">
-        <option value="E">Easy (E)</option>
-        <option value="H">Hard (H)</option>
-      </select><br>
-      <button id="start">Start</button>
-    );
-    document.getElementById('start').onclick=()=>{
-      const pid  = document.getElementById('pid').value.trim();
-      const diff = document.getElementById('diff').value;
-      if(!pid){ alert('Please enter an ID'); return; }
-      state.participant = pid;
-      state.difficulty  = diff;
-      state.blockOrder  = shuffle(['Chess','Cloud']);
-      blockLoop(0);
-    };
-  }
-
-  /* ----- block loop ----- */
-  async function blockLoop(i){
-    if(i>=state.blockOrder.length) return finish();
-    await runBlock(state.blockOrder[i]);
-    blockLoop(i+1);
-  }
-
-  /* ---------------- RUN BLOCK (Study → Distractor → Test) ---------------- */
-  async function runBlock(topic){
-    const pool = state.stimuliPool
-                  .filter(s=>s.topic===topic && s.diff===state.difficulty);
-    if(pool.length<40) throw new Error('Insufficient stimuli');
-
-    const study     = randomSample(pool,20);
-    const newFoils  = randomSample(pool.filter(s=>!study.includes(s)),20);
-    const testList  = shuffle([...study,...newFoils]);
-
-    /* ---- Study ---- */
-    show(<h2>Study – ${topic}</h2><p>You will hear 20 sentences. Listen carefully.</p><p>Press SPACE to begin.</p>);
-    await waitSpace();
-    for(let i=0;i<study.length;i++){
-      show(
-        <div class="study-listen-screen">
-          <p class="fixation">+</p>
-          <p class="instruction">Listen carefully.</p>
-        </div>);
-      await playAudio(study[i].file);
-      log({participant:state.participant,difficulty:state.difficulty,
-           topic,phase:'study',serialPos:i+1,
-           file:study[i].file,sentence:study[i].sentence});
-      await sleep(100);
-    }
-
-    /* ---- Distractor ---- */
-    await distractorPhase(topic);
-
-    /* ---- Test ---- */
-    show(<h2>Memory Test – ${topic}</h2><p>OLD = F key &nbsp;&nbsp; NEW = J key</p><p>Press SPACE to start.</p>);
-    await waitSpace();
-    for(const stim of testList){
-      show(<div class="fixation-cross-container">+</div>);
-      await sleep(CONFIG.fixationCrossDuration);
-      show(
-        <div class="test-sentence-container">
-          <p style="font-size:1.5rem;">${stim.sentence}</p>
-          <p style="font-size:.8em;margin-top:1em;">(F = OLD &nbsp;|&nbsp; J = NEW)</p>
-        </div>);
-      startClock = performance.now();
-      const key  = await waitKeys(['f','j']);
-      const rt   = performance.now() - startClock;
-      const isOld= study.includes(stim);
-      log({participant:state.participant,difficulty:state.difficulty,
-           topic,phase:'test',file:stim.file,sentence:stim.sentence,
-           isOld,serialPosTest:isOld?study.indexOf(stim)+1:-1,
-           respOld:key==='f',correct:(key==='f')===isOld,rt});
-    }
-  }
-
-  /* ---------------- HELPERS ---------------- */
-  function playAudio(fname){
-    return new Promise(res=>{
-      const a=new Audio(${CONFIG.audioDir}/${fname});
-      a.addEventListener('ended',()=>res());
-      a.play();
-    });
-  }
-  const waitSpace=()=>waitKeys([' ']);
-  function waitKeys(valid){
-    valid = valid.map(k=>k.toLowerCase());
-    return new Promise(res=>{
-      function onKey(e){
-        const k=e.key.toLowerCase();
-        if(valid.includes(k)){
-          document.removeEventListener('keydown',onKey);
-          res(k);
-        }
-      }
-      document.addEventListener('keydown',onKey);
-    });
-  }
-
-  /* ----- distractor count‑the‑high‑beeps ----- */
-  async function distractorPhase(topic){
-    const numHigh = Math.floor(Math.random()*8)+1;  // 1‑8
-    const seq     = shuffle(Array(numHigh).fill('high')
-                     .concat(Array(8-numHigh).fill('low')));
-
-    show(<h2>Counting task</h2><p>Count ONLY the high‑pitched beeps in 8 tones.</p><p>Press SPACE to start.</p>);
-    await waitSpace();
-
-    let firstToneTime=0;
-    for(let i=0;i<seq.length;i++){
-      if(i===0) firstToneTime=performance.now();
-      await beep(seq[i]==='high'?1000:400,0.2);
-      await sleep(50);
-    }
-    show(<p>How many high beeps? (Press 1‑8)</p>);
-    const key = await waitKeys(['1','2','3','4','5','6','7','8']);
-    const rt  = performance.now()-firstToneTime;
+  /* ---- Study ---- */
+  show(`<h2>Study – ${topic}</h2><p>You will hear 20 sentences. Listen carefully.</p><p>Press SPACE to begin.</p>`);
+  await waitSpace();
+  for(let i=0;i<study.length;i++){
+    show(`
+      <div class="study-listen-screen">
+        <p class="fixation">+</p>
+        <p class="instruction">Listen carefully.</p>
+      </div>`);
+    await playAudio(study[i].file);
     log({participant:state.participant,difficulty:state.difficulty,
-         topic,phase:'distractor',trueHigh:numHigh,resp:+key,
-         corrDistractor:(+key)===numHigh,rt});
+         topic,phase:'study',serialPos:i+1,
+         file:study[i].file,sentence:study[i].sentence});
+    await sleep(100);
   }
 
-  /* ---------------- FINISH ---------------- */
-  function finish(){
-    const csv = toCSV(state.data);
-    const fn  = ${CONFIG.experimentName}_${state.participant}_${Date.now()}.csv;
+  /* ---- Distractor ---- */
+  await distractorPhase(topic);
 
-    show('<h2>Uploading your data…</h2><p>Please wait.</p>');
-    uploadCSV(fn,csv)
-      .then(r=>{
-        if(!r.ok) throw new Error(HTTP ${r.status});
-        return r.json();
-      })
-      .then(()=>show('<h2>Upload complete!</h2><p>You may now close this window.</p>'))
-      .catch(err=>{
-        console.error('Upload failed:',err);
-        if(CONFIG.fallbackDownload){
-          downloadCSV(csv,fn);
-          show('<h2>Network error – data downloaded locally.</h2><p>Please email the CSV to the researcher.</p>');
-        }else{
-          show('<h2>Sorry – data could not be saved.</h2><p>Please screenshot this page and contact the researcher.</p>');
-        }
-      });
+  /* ---- Test ---- */
+  show(`<h2>Memory Test – ${topic}</h2><p>OLD = F key &nbsp;&nbsp; NEW = J key</p><p>Press SPACE to start.</p>`);
+  await waitSpace();
+  for(const stim of testList){
+    show(`<div class="fixation-cross-container">+</div>`);
+    await sleep(CONFIG.fixationCrossDuration);
+    show(`
+      <div class="test-sentence-container">
+        <p style="font-size:1.5rem;">${stim.sentence}</p>
+        <p style="font-size:.8em;margin-top:1em;">(F = OLD &nbsp;|&nbsp; J = NEW)</p>
+      </div>`);
+    startClock = performance.now();
+    const key  = await waitKeys(['f','j']);
+    const rt   = performance.now() - startClock;
+    const isOld= study.includes(stim);
+    log({participant:state.participant,difficulty:state.difficulty,
+         topic,phase:'test',file:stim.file,sentence:stim.sentence,
+         isOld,serialPosTest:isOld?study.indexOf(stim)+1:-1,
+         respOld:key==='f',correct:(key==='f')===isOld,rt});
   }
+}
 
-  /* ---------------- LAUNCH ---------------- */
-  (async()=>{
-    try{
-      await loadCSV();
-      intro();
-    }catch(e){
-      console.error(e);
-      show(<p>Error: ${e.message}</p>);
+/* -------------- HELPERS -------------- */
+function playAudio(fname){
+  return new Promise(res=>{
+    const a=new Audio(`${CONFIG.audioDir}/${fname}`);
+    a.addEventListener('ended',()=>res());
+    a.play();
+  });
+}
+const waitSpace=()=>waitKeys([' ']);
+function waitKeys(valid){
+  valid = valid.map(k=>k.toLowerCase());
+  return new Promise(res=>{
+    function onKey(e){
+      const k=e.key.toLowerCase();
+      if(valid.includes(k)){
+        document.removeEventListener('keydown',onKey);
+        res(k);
+      }
     }
-  })();
-  </script>
+    document.addEventListener('keydown',onKey);
+  });
+}
+
+/* ----- distractor count‑the‑high‑beeps ----- */
+async function distractorPhase(topic){
+  const numHigh = Math.floor(Math.random()*8)+1;  // 1‑8
+  const seq     = shuffle(Array(numHigh).fill('high')
+                   .concat(Array(8-numHigh).fill('low')));
+
+  show(`<h2>Counting task</h2><p>Count ONLY the high‑pitched beeps in 8 tones.</p><p>Press SPACE to start.</p>`);
+  await waitSpace();
+
+  let firstToneTime=0;
+  for(let i=0;i<seq.length;i++){
+    if(i===0) firstToneTime=performance.now();
+    await beep(seq[i]==='high'?1000:400,0.2);
+    await sleep(50);
+  }
+  show(`<p>How many high beeps? (Press 1‑8)</p>`);
+  const key = await waitKeys(['1','2','3','4','5','6','7','8']);
+  const rt  = performance.now()-firstToneTime;
+  log({participant:state.participant,difficulty:state.difficulty,
+       topic,phase:'distractor',trueHigh:numHigh,resp:+key,
+       corrDistractor:(+key)===numHigh,rt});
+}
+
+/* -------------- FINISH -------------- */
+function finish(){
+  const csv = toCSV(state.data);
+  const fn  = `${CONFIG.experimentName}_${state.participant}_${Date.now()}.csv`;
+
+  show('<h2>Uploading your data…</h2><p>Please wait.</p>');
+  uploadCSV(fn,csv)
+    .then(r=>{
+      if(!r.ok) throw new Error(`HTTP ${r.status}`);
+      return r.json();
+    })
+    .then(()=>show('<h2>Upload complete!</h2><p>You may now close this window.</p>'))
+    .catch(err=>{
+      console.error('Upload failed:',err);
+      if(CONFIG.fallbackDownload){
+        downloadCSV(csv,fn);
+        show('<h2>Network error – data downloaded locally.</h2><p>Please email the CSV to the researcher.</p>');
+      }else{
+        show('<h2>Sorry – data could not be saved.</h2><p>Please screenshot this page and contact the researcher.</p>');
+      }
+    });
+}
+
+/* -------------- LAUNCH -------------- */
+(async()=>{
+  try{
+    await loadCSV();
+    intro();
+  }catch(e){
+    console.error(e);
+    show(`<p>Error: ${e.message}</p>`);
+  }
+})();
+</script>
 </body>
 </html>
-
