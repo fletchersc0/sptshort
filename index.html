@@ -1,0 +1,413 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Topic Task</title>
+  <style>
+    :root {
+      --bg: #000000; /* Black background */
+      --fg: #ffffff; /* White foreground/text */
+      --input-bg: #1a1a1a; /* Dark grey for input backgrounds */
+      --border-color: #444444; /* Subtle border for inputs/buttons */
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0; font-family: system-ui, sans-serif; background: var(--bg); color: var(--fg);
+      display: flex; align-items: center; justify-content: center; min-height: 100vh;
+    }
+    #stage {
+      max-width: 860px; width: 92%; padding: 2rem; border-radius: 0; /* No rounded corners */
+      background: var(--bg); /* Stage background same as body */
+      box-shadow: none; /* No shadow */
+      text-align: center; line-height: 1.5;
+    }
+    button, select, input[type=text], input[type=number] {
+      font-size: 1rem; padding: .5rem 1rem; margin: .3rem; border-radius: 0; /* No rounded corners */
+      background-color: var(--input-bg);
+      color: var(--fg);
+      border: 1px solid var(--border-color); 
+    }
+    button { 
+      cursor: pointer; 
+      background: #222; /* Slightly lighter grey for buttons for differentiation */
+      border: 1px solid var(--border-color);
+    }
+    button:hover {
+      background: #333;
+      border-color: #555;
+    }
+    select {
+      /* Basic styling for select dropdown arrow for consistency if needed, but often OS styled */
+    }
+    .hidden { display: none; }
+    audio { display: none; }
+
+    /* Style for the fixation cross container (used in Test Phase) */
+    .fixation-cross-container {
+      font-size: 2rem; /* Size of the "+" */
+      height: 6em; /* Fixed height to prevent layout jumps, adjust as needed */
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: var(--fg); /* Ensure it's visible */
+    }
+    /* Style for test phase sentences to ensure consistent height */
+    .test-sentence-container {
+      min-height: 6em; /* Match fixation cross or set own desired height */
+      display: flex;
+      flex-direction: column; /* Stack sentence and instructions */
+      align-items: center;
+      justify-content: center;
+      /* font-size: 1.5rem; /* Moved to inline style for the sentence itself */
+    }
+    /* Style for study phase "Listen carefully" screen */
+    .study-listen-screen {
+        display: flex; 
+        flex-direction: column; 
+        align-items: center; 
+        justify-content: center; 
+        text-align: center; 
+        min-height: 200px; /* Or adjust as needed */
+    }
+    .study-listen-screen .fixation {
+        font-size: 3rem; 
+        margin: 0;
+    }
+    .study-listen-screen .instruction {
+        font-size: 1.5rem; 
+        margin-top: 0.5em;
+    }
+
+
+  </style>
+</head>
+<body>
+  <div id="stage">Loading stimuli…</div>
+
+  <script>
+    /* =====================================================================
+     *  PURE HTML/JS IMPLEMENTATION (no PsychoPy / no jsPsych)
+     *  Faithful to experiment.py provided:
+     *    • Study: 20 audio sentences (no response)
+     *    • Distractor: count HIGH beeps in 8‑tone sequence (1‑8 high tones)
+     *    • Test: 40 text sentences (20 old + 20 new) – F=OLD  J=NEW
+     *    • Logs serial positions, RTs, distractor accuracy, etc.
+     *    • Saves via DataPipe (fallback local CSV download)
+     * ===================================================================== */
+
+    /******************* CONFIG ************************/
+    const CONFIG = {
+      experimentName : 'SerialPosMemory',
+      audioDir       : 'audio',            // where .wav files live relative to html
+      csvFile        : 'stimulus_master.csv', // must contain columns: file,sentence
+      responseKeys   : { old: 'f', new: 'j' },
+      dataPipeID     : 'YOUR-EXPERIMENT-ID',  // ← replace with ID from pipe.jspsych.org
+      fallbackDownload : true,              // download CSV if network upload fails
+      fixationCrossDuration: 500 // Duration of fixation cross in milliseconds (for Test Phase)
+    };
+
+    /******************* GLOBAL STATE *****************/
+    const state = {
+      participant : '',
+      difficulty  : '', // E or H
+      blockOrder  : [], // e.g. ['Chess','Cloud'] shuffled
+      stimuliPool : [], // all rows from CSV after parsing
+      data        : []  // trial‑level rows
+    };
+
+    const stage = document.getElementById('stage');
+    let startClock = 0; // for RT timing per trial
+
+    /******************* UTILITIES *********************/
+    const sleep = ms => new Promise(r=>setTimeout(r,ms));
+    function shuffle(arr) {
+      for (let i = arr.length-1; i>0; i--) {
+        const j = Math.floor(Math.random()*(i+1));
+        [arr[i],arr[j]]=[arr[j],arr[i]];
+      }
+      return arr;
+    }
+    function randomSample(arr,n){
+      const copy=[...arr]; shuffle(copy); return copy.slice(0,n);
+    }
+
+    function beep(freq,dur=0.2){
+      return new Promise(res=>{
+        const ctx=new (window.AudioContext||window.webkitAudioContext)();
+        const osc=ctx.createOscillator(); const gain=ctx.createGain();
+        osc.frequency.value=freq; osc.connect(gain); gain.connect(ctx.destination);
+        osc.start(); gain.gain.setValueAtTime(1,ctx.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.0001,ctx.currentTime+dur);
+        osc.stop(ctx.currentTime+dur);
+        setTimeout(()=>{ctx.close();res();},dur*1000);
+      });
+    }
+
+    function log(row){
+      // Convert booleans to 0/1 for CSV consistency
+      const booleanKeys = ['isOld', 'respOld', 'correct', 'corrDistractor'];
+      booleanKeys.forEach(k => {
+        if (row.hasOwnProperty(k)) {
+          row[k] = row[k] ? 1 : 0;
+        }
+      });
+
+      // Convert RT to seconds (float) if it exists in this row
+      if (row.hasOwnProperty('rt') && typeof row.rt === 'number') {
+        row.rt = row.rt / 1000; 
+      }
+      
+      state.data.push(row);
+    }
+
+    function toCSV(rows){
+      if (!rows || rows.length === 0) {
+        console.warn("No data to convert to CSV.");
+        return ""; 
+      }
+
+      const allKeys = new Set();
+      rows.forEach(row => {
+        Object.keys(row).forEach(key => allKeys.add(key));
+      });
+      
+      const preferredOrder = [
+        'participant', 'difficulty', 'topic', 'phase', 
+        'file', 'sentence', 
+        'serialPos', 
+        'isOld', 'serialPosTest', 'respOld', 'correct', 
+        'trueHigh', 'resp', 'corrDistractor', 
+        'rt' 
+      ];
+      
+      let sortedHeader = preferredOrder.filter(k => allKeys.has(k));
+      allKeys.forEach(k => {
+        if (!sortedHeader.includes(k)) {
+          sortedHeader.push(k);
+        }
+      });
+      
+      const lines = [sortedHeader.join(',')];
+
+      rows.forEach(r => {
+        const line = sortedHeader.map(headerKey => {
+          const val = r[headerKey];
+          if (val === null || typeof val === 'undefined') {
+            return ''; 
+          }
+          let cell = String(val);
+          if (/[",\n\r]/.test(cell)) {
+            cell = `"${cell.replace(/"/g, '""')}"`;
+          }
+          return cell;
+        });
+        lines.push(line.join(','));
+      });
+      return lines.join('\n');
+    }
+
+    function uploadCSV(filename,csv){
+      const body=btoa(unescape(encodeURIComponent(csv)));
+      return fetch(`https://pipe.jspsych.org/api/v1/experiments/${CONFIG.dataPipeID}/data`,{
+        method:'POST',headers:{'Content-Type':'application/json'},
+        body:JSON.stringify({filename,data:body})
+      });
+    }
+
+    function downloadCSV(csv,fn){
+      const blob=new Blob([csv],{type:'text/csv'});
+      const url=URL.createObjectURL(blob);
+      const a=document.createElement('a'); a.href=url; a.download=fn; a.click();
+      URL.revokeObjectURL(url);
+    }
+
+    function show(html){ stage.innerHTML=html; }
+
+    /******************* LOAD STIMULI CSV *********************/
+    async function loadCSV(){
+      const txt = await fetch(CONFIG.csvFile).then(r => r.text()).catch(err => {
+        show(`<p>Error loading stimulus file: ${CONFIG.csvFile}. Please check the file exists and the path is correct. Details: ${err.message}</p>`);
+        throw new Error(`Failed to fetch ${CONFIG.csvFile}: ${err.message}`);
+      });
+      const lines = txt.trim().split(/\r?\n/);
+      lines.shift(); // Remove header line
+      
+      lines.forEach((line, lineIndex) => {
+        const firstCommaIndex = line.indexOf(',');
+        
+        if (firstCommaIndex === -1) {
+          console.warn(`Skipping line ${lineIndex + 1} in CSV (no comma found): ${line}`);
+          return; 
+        }
+
+        const file = line.substring(0, firstCommaIndex).trim();
+        const sentence = line.substring(firstCommaIndex + 1).trim(); 
+
+        const row = { file, sentence };
+
+        const m = /(Ch|Cl)(E|H)(\d{2})\.(?:wav|mp3|ogg)/i.exec(row.file);
+        if(!m) {
+          console.warn(`Skipping line ${lineIndex + 1} (bad filename format: ${row.file}): ${line}`);
+          return; 
+        }
+        row.topic = m[1].toLowerCase()==='ch' ? 'Chess':'Cloud';
+        row.diff  = m[2].toUpperCase();
+        row.idx   = parseInt(m[3],10);
+        state.stimuliPool.push(row);
+      });
+
+      if (state.stimuliPool.length === 0) {
+        show("<p>Error: No valid stimuli were loaded from the CSV file. Please check the CSV file format, content, and ensure it's accessible at the path specified in CONFIG.csvFile.</p><p>Make sure each line has a filename, a comma, and then the sentence.</p>");
+        throw new Error("No stimuli loaded. CSV parsing might have failed for all lines or the file is empty/incorrectly formatted.");
+      }
+      console.log(`Loaded ${state.stimuliPool.length} stimuli total.`);
+    }
+
+    /******************* MAIN FLOW ***************************/
+    async function intro(){
+      show(`<h1>${CONFIG.experimentName}</h1>
+        <p>Please enter your Participant ID and assigned difficulty level.</p>
+        <input id="pid" placeholder="Participant ID" />
+        <select id="diff"><option value="E">Easy (E)</option><option value="H">Hard (H)</option></select><br>
+        <button id="start">Start</button>`);
+      document.getElementById('start').onclick=()=>{
+        const pid=document.getElementById('pid').value.trim();
+        const diff=document.getElementById('diff').value;
+        if(!pid){alert('Please enter an ID'); return;}
+        state.participant=pid; state.difficulty=diff;
+        state.blockOrder=shuffle(['Chess','Cloud']);
+        blockLoop(0);
+      };
+    }
+
+    /******************* BLOCK LOOP ***************************/
+    async function blockLoop(idx){
+      if(idx>=state.blockOrder.length) return finish();
+      const topic=state.blockOrder[idx];
+      await runBlock(topic);
+      blockLoop(idx+1);
+    }
+
+    /******************* RUN SINGLE BLOCK **********************/
+    async function runBlock(topic){
+      const pool=state.stimuliPool.filter(s=>s.topic===topic && s.diff===state.difficulty);
+      if(pool.length<40){ show(`<p>Not enough stimuli for ${topic}-${state.difficulty}</p>`); throw new Error('Insufficient stimuli'); }
+
+      const study=randomSample(pool,20);
+      const newFoils=randomSample(pool.filter(s=>!study.includes(s)),20);
+      const testList=shuffle([...study,...newFoils]);
+
+      /***** Study phase *****/
+      show(`<h2>Study – ${topic}</h2><p>You will hear 20 sentences. Listen carefully.</p><p>Press SPACE to begin.</p>`);
+      await waitSpace();
+      
+      for(let i=0;i<study.length;i++){
+        // Show fixation cross and "Listen carefully" message
+        show(`<div class="study-listen-screen">
+                <p class="fixation">+</p>
+                <p class="instruction">Listen carefully.</p>
+              </div>`);
+        
+        await playAudio(study[i].file);
+        log({participant:state.participant,difficulty:state.difficulty,topic,phase:'study',serialPos:i+1,file:study[i].file,sentence:study[i].sentence});
+        
+        // Brief pause after audio (during which the "+ Listen carefully" screen is still visible)
+        await sleep(100); 
+      }
+
+      /***** Distractor *****/
+      await distractorPhase(topic);
+
+      /***** Test phase *****/
+      show(`<h2>Memory Test – ${topic}</h2><p>OLD = F key &nbsp;&nbsp;&nbsp; NEW = J key</p><p>Respond as quickly and accurately as possible. Press SPACE to start.</p>`);
+      await waitSpace();
+
+      for(const stim of testList){
+        // Display fixation cross
+        show(`<div class="fixation-cross-container">+</div>`);
+        await sleep(CONFIG.fixationCrossDuration); 
+
+        // Display sentence
+        show(`<div class="test-sentence-container">
+                <p style="font-size:1.5rem;">${stim.sentence}</p>
+                <p style="font-size: 0.8em; margin-top: 1em;">(F = OLD &nbsp;&nbsp;|&nbsp;&nbsp; J = NEW)</p>
+              </div>`);
+        startClock=performance.now();
+        const key=await waitKeys(['f','j']);
+        const rt=performance.now()-startClock;
+        const isOld=study.includes(stim);
+        const serialPosTest=isOld ? (study.indexOf(stim)+1) : -1;
+        const respOld=key==='f';
+        const correct = respOld===isOld;
+        log({participant:state.participant,difficulty:state.difficulty,topic,phase:'test',file:stim.file,sentence:stim.sentence,isOld,serialPosTest,respOld,correct,rt});
+      }
+    }
+
+    /******************* STUDY AUDIO HELPER *********************/
+    function playAudio(fname){
+      return new Promise(res=>{
+        const a=new Audio(`${CONFIG.audioDir}/${fname}`);
+        a.addEventListener('ended',()=>res()); a.play();
+      });
+    }
+
+    /******************* WAIT FOR SPACEBAR *********************/
+    function waitSpace(){
+      return new Promise(res=>{
+        function onKey(e){ if(e.code==='Space'){ document.removeEventListener('keydown',onKey); res(); } }
+        document.addEventListener('keydown',onKey);
+      });
+    }
+
+    /******************* WAIT FOR SPECIFIC KEYS *****************/
+    function waitKeys(valid){
+      valid=valid.map(k=>k.toLowerCase());
+      return new Promise(res=>{
+        function onKey(e){ const k=e.key.toLowerCase(); if(valid.includes(k)){ document.removeEventListener('keydown',onKey); res(k); } }
+        document.addEventListener('keydown',onKey);
+      });
+    }
+
+    /******************* DISTRACTOR PHASE **********************/
+    async function distractorPhase(topic){
+      const numHigh=Math.floor(Math.random()*8)+1; // 1‑8 high beeps
+      const seq=shuffle(Array(numHigh).fill('high').concat(Array(8-numHigh).fill('low')));
+
+      show(`<h2>Counting task</h2><p>Count ONLY the high‑pitched beeps in the upcoming sequence of 8 tones.</p><p>Press SPACE to start.</p>`);
+      await waitSpace();
+
+      let firstToneTime=0;
+      for(let i=0;i<seq.length;i++){
+        if(i===0) firstToneTime=performance.now();
+        await beep(seq[i]==='high'?1000:400,0.2);
+        await sleep(50); 
+      }
+
+      show(`<p>How many high‑pitched beeps did you hear? (Press 1‑8)</p>`);
+      const key=await waitKeys(['1','2','3','4','5','6','7','8']);
+      const rt=performance.now()-firstToneTime;
+      log({participant:state.participant,difficulty:state.difficulty,topic,phase:'distractor',trueHigh:numHigh,resp:+key,corrDistractor:(+key)===numHigh,rt});
+    }
+
+    /******************* FINISH *****************************/
+    function finish(){
+      show('<h2>Saving your data…</h2>');
+      const csv=toCSV(state.data);
+      const fn=`${CONFIG.experimentName}_${state.participant}_${Date.now()}.csv`;
+      uploadCSV(fn,csv).then(r=>{
+        if(!r.ok) throw new Error(r.statusText);
+        show('<h2>All done! You may close this window.</h2>');
+      }).catch(err=>{
+        console.error('Upload failed',err);
+        if(CONFIG.fallbackDownload){ downloadCSV(csv,fn); show('<h2>Save failed – CSV downloaded locally.</h2><p>Please ensure the downloaded CSV file is saved and submitted as instructed.</p>'); }
+        else { show('<h2>Error saving data. Please screenshot this screen and contact the researcher.</h2>'); }
+      });
+    }
+
+    /******************* KICK‑OFF **************************/
+    (async ()=>{ await loadCSV(); intro(); })();
+  </script>
+</body>
+</html>
