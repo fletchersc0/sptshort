@@ -1,671 +1,404 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" /> <!-- Specifies the character encoding for the document (UTF-8 is recommended) -->
-  <meta http-equiv="X-UA-Compatible" content="IE=edge" /> <!-- Tells Internet Explorer to use its latest rendering engine -->
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" /> <!-- Configures the viewport for responsiveness on different devices -->
-  <title>News Confidence Task</title> <!-- The title that appears in the browser tab or window title bar -->
+  <meta charset="UTF-8" />
+  <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Topic Task</title>
 
+  <!-- ===================  MINIMAL DARK THEME  =================== -->
   <style>
-    /* CSS Custom Properties (Variables) for easy theme management */
     :root {
-      --bg: #000; /* Background color */
-      --fg: #fff; /* Foreground (text) color */
-      --input-bg: #1a1a1a; /* Background color for input elements */
-      --border-color:#444; /* Border color for elements */
+      --bg: #000;          /* page background  */
+      --fg: #fff;          /* normal text      */
+      --input-bg: #1a1a1a; /* inputs / buttons */
+      --border-color:#444;
     }
-    /* Global reset for box-sizing to include padding and border in the element's total width and height */
     *      { box-sizing:border-box; }
     html,body{
-      margin:0; /* Remove default margins */
-      font-family:system-ui,sans-serif; /* Set a modern system font stack */
-      background:var(--bg); /* Apply background color */
-      color:var(--fg); /* Apply text color */
-      display:flex; /* Use flexbox for centering content */
-      align-items:center; /* Center content vertically */
-      justify-content:center; /* Center content horizontally */
-      min-height:100vh; /* Ensure the body takes up at least the full viewport height */
-      text-align:center; /* Center text within elements */
+      margin:0;
+      font-family:system-ui,sans-serif;
+      background:var(--bg);
+      color:var(--fg);
+      display:flex;
+      align-items:center;
+      justify-content:center;
+      min-height:100vh;
     }
-    /* The main container for the experiment's content */
     #stage{
-      width:92%; /* Responsive width */
-      max-width:860px; /* Maximum width to maintain readability */
-      padding:2rem; /* Padding around the content */
+      width:92%;
+      max-width:860px;
+      padding:2rem;
+      text-align:center;
     }
-    /* Styling for interactive elements like buttons, text inputs, and select dropdowns */
     button,
-    input[type=text],
-    input[type=number],
-    select {
-      font-size:1rem; /* Base font size */
-      padding:.5rem 1rem; /* Padding inside the elements */
-      margin:.3rem; /* Margin around the elements */
-      background:var(--input-bg); /* Background color */
-      color:var(--fg); /* Text color */
-      border:1px solid var(--border-color); /* Border */
+    input[type=text]{
+      font-size:1rem;
+      padding:.5rem 1rem;
+      margin:.3rem;
+      background:var(--input-bg);
+      color:var(--fg);
+      border:1px solid var(--border-color);
     }
-    /* Specific styling for buttons */
     button{
-      cursor:pointer; /* Change cursor to indicate interactivity */
-      background:#222; /* Slightly different background for buttons */
+      cursor:pointer;
+      background:#222;
     }
-    /* Hover effect for buttons */
     button:hover{
       background:#333;
       border-color:#555;
     }
-    /* Styling for the fixation cross container */
+    audio{ display:none; }
+
+    /* ---------- Experiment‑specific helpers ---------- */
     .fixation-cross-container{
-      font-size:3rem; /* Large font size for the cross */
-      height:6em; /* Fixed height to maintain layout consistency */
-      display:flex;align-items:center;justify-content:center; /* Center the cross */
+      font-size:2rem;
+      height:6em;
+      display:flex;align-items:center;justify-content:center;
     }
-    /* Styling for containers that hold statements, feedback, or questionnaire items */
-    .statement-container, .feedback-container, .questionnaire-container {
-      min-height:12em; /* Minimum height to prevent layout jumps */
-      display:flex;flex-direction:column;align-items:center;justify-content:center; /* Center content */
-      padding: 1em; /* Padding */
+    .test-sentence-container{
+      min-height:6em;
+      display:flex;flex-direction:column;align-items:center;justify-content:center;
     }
-    /* Styling for the stimulus images */
-    .stimulus-image {
-      max-width: 420px; /* Maximum width for the image */
-      max-height: 360px; /* Maximum height for the image */
-      width: auto; /* Allow image to scale down if smaller than max-width */
-      height: auto; /* Allow image to scale down if smaller than max-height */
-      display: block; /* Make it a block element for margin auto to work */
-      margin: 0 auto 1em auto; /* Center image and add bottom margin */
-      border: 2px solid #333; /* Border around the image */
-      background: #111; /* Background in case image is transparent or fails to load */
-      box-shadow: 0 2px 8px #000a; /* Subtle shadow for depth */
+    .study-listen-screen{
+      display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:200px;
     }
-    /* Styling for feedback text */
-    .feedback-text { font-size:1.2rem; }
-    /* Styling for instructional text */
-    .instructions { font-size:1rem; color: #ccc; margin-top: 1em;}
-    /* Styling for question text in the questionnaire */
-    .question-text { font-size:1.2rem; margin-bottom: 1em;}
-    /* Styling for loading messages */
-    .loading { font-size:1.2rem; color: #aaa; }
+    .study-listen-screen .fixation{ font-size:3rem;margin:0; }
+    .study-listen-screen .instruction{ font-size:1.5rem;margin-top:.5em; }
   </style>
 </head>
 <body>
-  <!-- This div is the main "stage" where all dynamic content of the experiment will be rendered by JavaScript -->
-  <div id="stage">Loading experiment...</div>
+  <div id="stage">Loading stimuli…</div>
 
 <script>
-// CONFIGURATION OBJECT: All fixed parameters and settings for the experiment are defined here.
+/* ===================================================================
+ * SERIAL‑POSITION MEMORY TASK  (HTML + Vanilla JS)
+ * – Study (20 audio sentences)            – no response
+ * – Distractor (count high beeps)         – numeric response
+ * – Test   (40 text sentences OLD/NEW)    – F=OLD  J=NEW
+ * – Data sent to DataPipe → OSF           – CSV fallback download
+ * =================================================================== */
+
+/* -------------- CONFIG -------------- */
 const CONFIG = {
-  experimentName         : 'News Confidence Task', // Name of the experiment, used in filenames and potentially titles
-  csvFile                : 'statements_master.csv', // Name of the CSV file containing stimuli (statements, truth values, image names)
-                                                    // This file is expected to have an 'image_filename' field.
-  responseKeys           : { true_key: 'f', false_key: 'j' }, // Keyboard keys for 'True' and 'False' responses
-  dataPipeID             : 'qWHxwr6D720q', // Unique ID for jsPsych's data pipe service (https://pipe.jspsych.org) for online data storage
-  fallbackDownload       : true, // If true, data will be downloaded as a CSV if online saving fails
-  fixationCrossDuration  : 500,  // Duration (in milliseconds) to display the fixation cross
-  statementTimeoutDuration: 10000, // Maximum time (in ms) allowed for responding to a statement
-  feedbackDuration       : 6000, // Duration (in ms) to display feedback after a response
-  timeoutFeedbackDuration: 2000, // Duration (in ms) for the "please respond faster" message on timeout
-  isiDuration            : 500,  // Inter-stimulus interval (in ms), a brief pause between trials
-  // feedbackManipulationPercentages: Defines the probability of affirming a CORRECT answer for each experimental group in Block 1.
-  // This is central to the confidence manipulation. 'Control' group receives veridical feedback.
-  feedbackManipulationPercentages: {
-    High   : 0.80, // High confidence group: 80% chance of affirming a correct answer
-    Medium : 0.50, // Medium confidence group: 50% chance
-    Low    : 0.20, // Low confidence group: 20% chance
-    Control: null  // Control group: Feedback is based on actual correctness (handled separately in code)
-  },
-  // epsilonIncorrectAffirm: A small probability of affirming an INCORRECT answer.
-  // This helps to make the feedback manipulation less obvious to participants.
-  epsilonIncorrectAffirm : 0.05, // 5% chance of affirming an incorrect answer
-  numInductionTrials: 40, // Number of trials in the first block (confidence induction phase)
-  numTestTrials: 20,      // Number of trials in the second block (testing phase)
-  // masterHeader: Defines the column headers for the output CSV file.
-  // This ensures all data files have a consistent structure.
+  experimentName       : 'Audio Task',
+  audioDir             : 'audio',               // audio/*.wav
+  csvFile              : 'stimulus_master.csv', // stimuli list
+  responseKeys         : { old:'f', new:'j' },
+  dataPipeID           : 'qWHxwr6D720q',        // ← your real DataPipe ID
+  fallbackDownload     : true,                  // save CSV locally on failure
+  fixationCrossDuration: 500,                   // ms
+
+  /* ★ Fixed column order */
   masterHeader : [
-    'pid', 'group', 'block_type', 'trial_number_in_block', 'trial_number_overall',
-    'statement_id', 'statement_text', 'statement_truth_value', 'image_filename',
-    'response', 'is_correct', 'rt_ms',
-    'feedback_manipulation_type', 'feedback_shown_fact_check_for',
-    'q_own_ability_pre', 'q_others_ability_pre', 'q_rank_pre',
-    'q_own_ability_post', 'q_others_ability_post', 'q_rank_post',
-    'timestamp'
+    'participant','difficulty','topic','phase',
+    'file','sentence','serialPos',
+    'isOld','serialPosTest','respOld','correct',
+    'trueHigh','resp','corrDistractor','rt'
   ]
 };
 
-// ------------------------ STATE OBJECT ------------------------
-// This object holds all dynamic data that changes during the experiment.
-const state = {
-  participant : '', // Participant's ID (e.g., Prolific ID)
-  group       : '', // Experimental group (High, Medium, Low, Control)
-  stimuliPool : [], // Array to store all stimuli loaded from the CSV file
-  inductionStatements: [], // Subset of stimuli for the induction block
-  testStatements: [],    // Subset of stimuli for the test block
-  data        : [], // Array to store data collected from each trial and questionnaire
-  trialCountOverall: 0, // Counter for the total number of trials completed
-  // Placeholders for questionnaire responses (pre- and post-experiment)
-  q_own_ability_pre: null,
-  q_others_ability_pre: null,
-  q_rank_pre: null,
-  q_own_ability_post: null,
-  q_others_ability_post: null,
-  q_rank_post: null,
+/* -------- Session‑Key → condition map (edit codes here) -------- */
+const GROUP_KEYS = {
+  'Q3B-8Y2': 'E',   // Easy
+  'M9V-4X7': 'H'    // Hard
 };
 
-// Get a reference to the main HTML element where content will be displayed
-const stage = document.getElementById('stage');
-// Variable to store the start time for reaction time measurement
-let rtClock = 0;
+/* -------------- GLOBAL STATE -------------- */
+const state = {
+  participant : '',
+  difficulty  : '',
+  blockOrder  : [],
+  stimuliPool : [],
+  data        : []
+};
 
-// ------------------------ UTILITY FUNCTIONS ------------------------
-// Creates a delay for a specified number of milliseconds. Returns a Promise.
-const sleep = ms => new Promise(r=>setTimeout(r,ms));
+const stage      = document.getElementById('stage');
+let   startClock = 0;      // RT timer
 
-// Shuffles an array in place using the Fisher-Yates algorithm.
+/* -------------- UTILITIES -------------- */
+const sleep   = ms => new Promise(r=>setTimeout(r,ms));
 const shuffle = arr=>{
   for(let i=arr.length-1;i>0;i--){
     const j=Math.floor(Math.random()*(i+1));
-    [arr[i],arr[j]]=[arr[j],arr[i]]; // Swap elements
+    [arr[i],arr[j]]=[arr[j],arr[i]];
   } return arr;
 };
+const randomSample=(arr,n)=>shuffle([...arr]).slice(0,n);
 
-// Updates the content of the #stage div with the provided HTML string.
-const show = html => stage.innerHTML = html;
-
-// ------------------------ DATA LOGGING FUNCTIONS ------------------------
-/**
- * Logs a single row of data.
- * Ensures that all columns defined in CONFIG.masterHeader are present,
- * filling in blanks if a key is missing in dataRow.
- * @param {object} dataRow - An object containing data for the current trial/event.
- */
-function log(dataRow) {
-  dataRow.timestamp = new Date().toISOString(); // Add a precise timestamp
-  const completeRow = {};
-  // Iterate over the master header to ensure consistent column order and presence
-  for (const header of CONFIG.masterHeader) {
-    completeRow[header] = (header in dataRow) ? dataRow[header] : ''; // Use value from dataRow or empty string
-  }
-  state.data.push(completeRow); // Add the structured row to the main data array
+/* ----- audio beep for distractor ----- */
+function beep(freq,dur=0.2){
+  return new Promise(res=>{
+    const ctx=new (window.AudioContext||window.webkitAudioContext)();
+    const osc=ctx.createOscillator();
+    const gain=ctx.createGain();
+    osc.frequency.value=freq;
+    osc.connect(gain); gain.connect(ctx.destination);
+    osc.start();
+    gain.gain.setValueAtTime(1,ctx.currentTime);
+    gain.gain.exponentialRampToValueAtTime(0.0001,ctx.currentTime+dur);
+    osc.stop(ctx.currentTime+dur);
+    setTimeout(()=>{ctx.close();res();},dur*1000);
+  });
 }
 
-/**
- * Converts an array of data objects into a CSV formatted string.
- * @param {Array<object>} rows - The array of data rows to convert.
- * @returns {string} A string in CSV format.
- */
+/* ----- log → state.data (booleans → 0/1; rt → seconds) ----- */
+function log(row){
+  ['isOld','respOld','correct','corrDistractor']
+    .forEach(k=>{ if(k in row) row[k]=row[k]?1:0; });
+  if('rt' in row && typeof row.rt==='number') row.rt = row.rt/1000;
+  state.data.push(row);
+}
+
+/* ----- array of objects → CSV (fixed header) ----- */
 function toCSV(rows){
-  if (!rows.length) return ''; // Return empty string if no data
+  if (!rows.length) return '';
   const header = CONFIG.masterHeader;
-  const lines  = [header.join(',')]; // Start with the header row
+  const lines  = [header.join(',')];
+
   rows.forEach(r=>{
-    const line = header.map(k=>{ // For each header key, get the corresponding value
-      let cell = (k in r && r[k]!==null && r[k]!==undefined) ? r[k] : ''; // Get cell value or empty string
-      cell = String(cell); // Ensure it's a string
-      // If cell contains comma, newline, or quotes, enclose it in double quotes and escape existing quotes
+    const line = header.map(k=>{
+      let cell = (k in r && r[k]!==undefined) ? r[k] : '';
+      cell = String(cell);
       if (/[",\n\r]/.test(cell))
         cell = '"' + cell.replace(/"/g,'""') + '"';
       return cell;
     }).join(',');
     lines.push(line);
   });
-  return lines.join('\n'); // Join all lines with newline characters
+  return lines.join('\n');
 }
 
-/**
- * Uploads the CSV data to the jsPsych data pipe service.
- * @param {string} filename - The desired filename for the data on the server.
- * @param {string} csv - The CSV data as a string.
- * @returns {Promise<Response>} A promise that resolves with the server's response.
- */
+/* ----- UPLOAD CSV via DataPipe (JSON wrapper) ----- */
 function uploadCSV(filename,csv){
-  return fetch('https://pipe.jspsych.org/api/data',{ // API endpoint for data submission
+  return fetch('https://pipe.jspsych.org/api/data',{
     method :'POST',
-    headers:{'Content-Type':'application/json'}, // Specify JSON content type
-    body   : JSON.stringify({ // Construct the JSON payload
-      experimentID: CONFIG.dataPipeID, // Experiment ID from CONFIG
+    headers:{'Content-Type':'application/json'},
+    body   : JSON.stringify({
+      experimentID: CONFIG.dataPipeID,
       filename    : filename,
-      data        : csv // The CSV data string
+      data        : csv
     })
   });
 }
 
-/**
- * Triggers a local download of the CSV data in the participant's browser.
- * Used as a fallback if online upload fails.
- * @param {string} csv - The CSV data as a string.
- * @param {string} fn - The filename for the downloaded file.
- */
+/* ----- Fallback local download ----- */
 function downloadCSV(csv,fn){
-  const blob=new Blob([csv],{type:'text/csv'}); // Create a Blob with the CSV data
-  const url =URL.createObjectURL(blob); // Create a temporary URL for the Blob
-  const a   =document.createElement('a'); // Create a temporary anchor element
-  a.href=url;
-  a.download=fn; // Set the download attribute to suggest a filename
-  a.click(); // Programmatically click the anchor to trigger download
-  URL.revokeObjectURL(url); // Release the object URL
+  const blob=new Blob([csv],{type:'text/csv'});
+  const url =URL.createObjectURL(blob);
+  const a   =document.createElement('a');
+  a.href=url; a.download=fn; a.click();
+  URL.revokeObjectURL(url);
 }
 
-// ------------------- STIMULUS LOADER -------------------
-/**
- * Loads stimuli from the CSV file specified in CONFIG.csvFile.
- * Parses the CSV, creates stimulus objects, and populates the state.stimuliPool.
- * Also shuffles and divides stimuli into induction and test sets.
- */
-async function loadCSVStimuli(){
-  const response = await fetch(CONFIG.csvFile); // Fetch the CSV file
-  if (!response.ok) throw new Error(`Failed to load ${CONFIG.csvFile}: ${response.statusText}`);
-  const txt = await response.text(); // Get the CSV content as text
-  
-  // Attempt to detect delimiter (tab or comma)
-  let lines = txt.trim().split(/\r?\n/); // Split into lines
-  let delimiter = "\t"; // Assume tab first
-  if (lines[0].split("\t").length < 6) delimiter = ","; // Fallback to comma if tab split yields few columns (heuristic)
-  
-  const header = lines.shift().split(delimiter); // Get header row and remove it from lines
-  
-  lines.forEach(line => {
-    let fields = [];
-    if (delimiter === "\t") {
-      fields = line.split("\t"); // Split by tab
-    } else {
-      // Minimal CSV parser for comma-separated values, handles quoted cells
-      let current = '', inQuotes = false;
-      for (let i = 0; i < line.length; i++) {
-        const char = line[i];
-        if (char === '"') { // Toggle inQuotes state if a quote is encountered
-          inQuotes = !inQuotes;
-        } else if (char === delimiter && !inQuotes) { // If delimiter and not in quotes, end current field
-          fields.push(current);
-          current = '';
-        } else { // Otherwise, append character to current field
-          current += char;
-        }
-      }
-      fields.push(current); // Add the last field
-    }
-    // Ensure each stimulus has at least 6 fields, padding with empty strings if necessary
-    // This assumes a fixed structure: id, text, is_true, fact_check_true, fact_check_false, image_filename
-    while(fields.length < 6) fields.push(''); 
+/* ----- helper to swap stage HTML ----- */
+const show = html => stage.innerHTML = html;
+
+/* -------------- LOAD STIMULI CSV -------------- */
+async function loadCSV(){
+  const txt = await fetch(CONFIG.csvFile).then(r=>r.text());
+  const lines = txt.trim().split(/\r?\n/);
+  lines.shift();                        // remove header
+
+  lines.forEach(line=>{
+    const comma = line.indexOf(',');
+    if(comma===-1) return;              // skip bad rows
+    const file     = line.slice(0,comma).trim();
+    const sentence = line.slice(comma+1).trim();
+    const m = /(Ch|Cl)(E|H)(\d{2})\.(wav|mp3|ogg)$/i.exec(file);
+    if(!m) return;
     state.stimuliPool.push({
-      id: fields[0],
-      text: fields[1], // The statement/headline text (not directly used in this version's display, but logged)
-      is_true: fields[2].toUpperCase() === 'TRUE', // Convert truth value to boolean
-      fact_check_true: fields[3], // Fact-check text to show if feedback indicates "true"
-      fact_check_false: fields[4], // Fact-check text to show if feedback indicates "false"
-      image_filename: fields[5] // Filename of the image associated with the statement
+      file,
+      sentence,
+      topic : m[1].toLowerCase()==='ch'?'Chess':'Cloud',
+      diff  : m[2].toUpperCase(),
+      idx   : parseInt(m[3],10)
     });
   });
-
-  // Check if enough stimuli were loaded for the experiment
-  if(state.stimuliPool.length < CONFIG.numInductionTrials + CONFIG.numTestTrials) {
-    throw new Error(`Insufficient stimuli loaded. Need ${CONFIG.numInductionTrials + CONFIG.numTestTrials}, found ${state.stimuliPool.length}. Check ${CONFIG.csvFile}.`);
-  }
-
-  shuffle(state.stimuliPool); // Randomize the order of all loaded stimuli
-  // Assign stimuli to induction and test blocks
-  state.inductionStatements = state.stimuliPool.slice(0, CONFIG.numInductionTrials);
-  state.testStatements = state.stimuliPool.slice(CONFIG.numInductionTrials, CONFIG.numInductionTrials + CONFIG.numTestTrials);
+  if(!state.stimuliPool.length)
+    throw new Error('No stimuli loaded – check CSV.');
 }
 
-// ------------------- KEYBOARD EVENT HELPERS -------------------
-/**
- * Waits for one of the specified keys to be pressed.
- * @param {Array<string>} validKeys - An array of lowercase key strings to listen for.
- * @returns {Promise<string>} A promise that resolves with the key that was pressed.
- */
-function waitKeys(validKeys) {
-  return new Promise(resolve => {
-    function onKey(e) {
-      const key = e.key.toLowerCase(); // Get pressed key, convert to lowercase
-      if (validKeys.includes(key)) { // Check if it's one of the valid keys
-        document.removeEventListener('keydown', onKey); // Clean up event listener
-        resolve(key); // Resolve the promise with the pressed key
-      }
-    }
-    document.addEventListener('keydown', onKey); // Add event listener for keydown
-  });
-}
-
-/**
- * Waits for one of the specified keys to be pressed OR for a timeout to occur.
- * @param {Array<string>} validKeys - An array of lowercase key strings to listen for.
- * @param {number} timeoutMs - The timeout duration in milliseconds.
- * @returns {Promise<{key: string|null, timedOut: boolean}>} A promise that resolves with an object
- *          containing the pressed key (or null if timed out) and a boolean indicating if it timed out.
- */
-function waitKeysOrTimeout(validKeys, timeoutMs) {
-  return new Promise(resolve => {
-    let timeoutId = null; // To store the timeout ID for cancellation
-    function onKey(e) {
-      const key = e.key.toLowerCase();
-      if (validKeys.includes(key)) {
-        clearTimeout(timeoutId); // Cancel the timeout if a valid key is pressed
-        document.removeEventListener('keydown', onKey);
-        resolve({ key: key, timedOut: false });
-      }
-    }
-    document.addEventListener('keydown', onKey);
-    // Set a timeout
-    timeoutId = setTimeout(() => {
-      document.removeEventListener('keydown', onKey); // Clean up event listener on timeout
-      resolve({ key: null, timedOut: true }); // Resolve indicating a timeout
-    }, timeoutMs);
-  });
-}
-
-// ------------------- TRUTH‑COMPATIBLE FEEDBACK LOGIC (Confidence Manipulation) -------------------
-/**
- * Determines the feedback to be shown based on the experimental group and participant's response.
- * This is the core of the confidence manipulation for non-Control groups during the induction phase.
- * The goal is to "affirm" or "refute" the participant's response with a certain probability,
- * and then show a fact-check snippet that is *compatible* with that affirmation/refutation,
- * regardless of the actual truth of the statement or the correctness of the response.
- *
- * @param {object} stimulus - The current stimulus object.
- * @param {string} participantResponse - 'True' or 'False'.
- * @param {string} group - The participant's experimental group ('High', 'Medium', 'Low').
- * @returns {{feedbackManipulationType: string, feedbackShownFactCheckFor: boolean}}
- *          - feedbackManipulationType: 'Affirm' or 'Refute'.
- *          - feedbackShownFactCheckFor: true if the "true" fact-check should be shown, false for "false" fact-check.
- */
-function chooseFeedback_truthCompatible(stimulus, participantResponse, group){
-  // Probability of affirming a CORRECT answer, based on the participant's group.
-  const pAffirmCorrect = CONFIG.feedbackManipulationPercentages[group]; // e.g., 0.80, 0.50, or 0.20
-  // Small probability of affirming an INCORRECT answer (to make manipulation less obvious).
-  const epsilon        = CONFIG.epsilonIncorrectAffirm; // e.g., 0.05
-
-  // Was the participant's response actually correct?
-  const answeredCorrectly = (participantResponse === 'True') === stimulus.is_true;
-  
-  // Determine the probability of affirming this specific response.
-  // If they were correct, use pAffirmCorrect. If incorrect, use epsilon.
-  const affirmProb = answeredCorrectly ? pAffirmCorrect : epsilon;
-  
-  // Randomly decide whether to affirm this response based on affirmProb.
-  const shouldAffirm = Math.random() < affirmProb;
-
-  // Determine which fact-check to show (the "true" one or the "false" one from the stimulus).
-  // - If we 'Affirm' their response, show the fact-check that matches their response.
-  //   (e.g., if they said 'True' and we affirm, show stimulus.fact_check_true)
-  // - If we 'Refute' their response, show the fact-check that contradicts their response.
-  //   (e.g., if they said 'True' and we refute, show stimulus.fact_check_false)
-  const showTrueFactCheck = shouldAffirm ? (participantResponse === 'True')  // If affirming, align with their response
-                                         : !(participantResponse === 'True'); // If refuting, show the opposite of their response
-
-  return {
-    feedbackManipulationType : shouldAffirm ? 'Affirm' : 'Refute', // Log whether we affirmed or refuted
-    feedbackShownFactCheckFor: showTrueFactCheck // Log which type of fact-check text was displayed
-  };
-}
-
-// ------------------- INTRODUCTORY SCREEN -------------------
-/**
- * Displays the initial screen to collect participant ID and group selection.
- */
-async function introScreen(){
+/* -------------- MAIN INTRO SCREEN -------------- */
+async function intro(){
   show(`
     <h1>${CONFIG.experimentName}</h1>
-    <p>Please enter your Prolific ID and select your group.</p>
-    <input id="pid" placeholder="Prolific ID" /><br>
-    <select id="groupSelect">
-      <option value="">--Select Group--</option>
-      <option value="High">High Confidence Group</option>
-      <option value="Medium">Medium Confidence Group</option>
-      <option value="Low">Low Confidence Group</option>
-      <option value="Control">Control Group</option>
-    </select><br>
-    <button id="startBtn">Start</button>
+    <p>Please enter your Prolific ID and Session Key.</p>
+    <input id="pid"  placeholder="Prolific ID" /><br>
+    <input id="skey" placeholder="Session Key"     /><br>
+    <button id="start">Start</button>
   `);
 
-  // Event listener for the start button
-  document.getElementById('startBtn').onclick = () => {
-    state.participant = document.getElementById('pid').value.trim(); // Get and store Prolific ID
-    state.group = document.getElementById('groupSelect').value; // Get and store selected group
+  document.getElementById('start').onclick = () => {
+    const pid  = document.getElementById('pid').value.trim();
+    const skey = document.getElementById('skey').value.trim().toUpperCase();
 
-    // Basic validation
-    if (!state.participant) {
-      alert('Please enter a Prolific ID.');
+    /* basic validation */
+    if (!pid){
+      alert('Please enter a Prolific ID');
       return;
     }
-    if (!state.group) {
-      alert('Please select a group.');
+    if (!(skey in GROUP_KEYS)){
+      alert('Session Key not recognised.\nPlease check the code and try again.');
       return;
     }
-    runBlock1(); // Proceed to the first block of trials
+
+    state.participant = pid;
+    state.difficulty  = GROUP_KEYS[skey];   // 'E' or 'H'
+    state.blockOrder  = shuffle(['Chess','Cloud']);
+
+    blockLoop(0);
   };
 }
 
-// ------------------- CORE TRIAL LOGIC -------------------
-/**
- * Runs a single trial of the experiment.
- * This includes showing fixation, stimulus, collecting response, showing feedback, and logging data.
- * @param {object} stimulus - The stimulus object for the current trial.
- * @param {string} blockType - The type of block ('ConfidenceInduction' or 'TruthTest').
- * @param {number} trialNumInBlock - The trial number within the current block.
- */
-async function runSingleTrial(stimulus, blockType, trialNumInBlock) {
-  state.trialCountOverall++; // Increment overall trial counter
-
-  // 1. Display Fixation Cross
-  show(`<div class="fixation-cross-container">+</div>`);
-  await sleep(CONFIG.fixationCrossDuration);
-
-  // 2. Display Stimulus (Image and Response Instructions)
-  // The actual statement text (stimulus.text) is not displayed here, only its associated image.
-  // The task is framed as judging headlines based on images.
-  show(`
-    <div class="statement-container">
-      <img class="stimulus-image" src="images/${stimulus.image_filename}" alt="headline stimulus" 
-           onerror="this.onerror=null;this.style.display='none';document.getElementById('imgerror').style.display='block';">
-      <div id="imgerror" class="loading" style="display:none;">[Image not found: ${stimulus.image_filename}]</div>
-      <p class="instructions">(F = TRUE / J = FALSE)</p>
-    </div>
-  `);
-
-  rtClock = performance.now(); // Start reaction time clock
-  // Wait for a valid key press or timeout
-  const responseResult = await waitKeysOrTimeout(
-    [CONFIG.responseKeys.true_key, CONFIG.responseKeys.false_key], // Valid keys 'f' and 'j'
-    CONFIG.statementTimeoutDuration
-  );
-  const rt = performance.now() - rtClock; // Calculate reaction time
-
-  let participantResponse = null; // 'True', 'False', or 'TIMEOUT'
-  let isCorrect = null; // true, false, or null (if timeout)
-  let feedbackText = ''; // Text to display as feedback
-  let feedbackManipulationType = ''; // Type of feedback manipulation (e.g., 'Affirm', 'Refute', 'Veridical', 'TIMEOUT')
-  let feedbackShownFactCheckFor = null; // Which fact-check text was shown (true for true_fact_check, false for false_fact_check)
-
-  if (responseResult.timedOut) {
-    // Handle timeout
-    participantResponse = 'TIMEOUT';
-    isCorrect = null;
-    feedbackText = "Please respond faster on the next trial.";
-    feedbackManipulationType = 'TIMEOUT';
-    show(`<div class="feedback-container"><p class="feedback-text">${feedbackText}</p></div>`);
-    await sleep(CONFIG.timeoutFeedbackDuration);
-  } else {
-    // Handle valid response
-    participantResponse = responseResult.key === CONFIG.responseKeys.true_key ? 'True' : 'False';
-    isCorrect = (participantResponse === 'True') === stimulus.is_true; // Determine if response was correct
-
-    // Determine feedback type and content
-    if (blockType === 'ConfidenceInduction' && state.group !== 'Control') {
-      // For induction block AND non-control groups, apply the truth-compatible (manipulated) feedback
-      const fb = chooseFeedback_truthCompatible(stimulus, participantResponse, state.group);
-      feedbackManipulationType  = fb.feedbackManipulationType;
-      feedbackShownFactCheckFor = fb.feedbackShownFactCheckFor;
-    } else {
-      // For test block OR control group, feedback is veridical (based on actual truth)
-      feedbackManipulationType  = 'Veridical';
-      feedbackShownFactCheckFor = stimulus.is_true; // Show fact-check corresponding to the actual truth
-    }
-
-    // Select the appropriate fact-check text based on feedbackShownFactCheckFor
-    feedbackText = feedbackShownFactCheckFor ? stimulus.fact_check_true : stimulus.fact_check_false;
-    show(`<div class="feedback-container"><p class="feedback-text">${feedbackText}</p></div>`);
-    await sleep(CONFIG.feedbackDuration);
-  }
-
-  // Log data for this trial
-  const trialData = {
-    pid: state.participant,
-    group: state.group,
-    block_type: blockType,
-    trial_number_in_block: trialNumInBlock,
-    trial_number_overall: state.trialCountOverall,
-    statement_id: stimulus.id,
-    statement_text: stimulus.text, // Log the original statement text even if not displayed
-    statement_truth_value: stimulus.is_true ? 'TRUE' : 'FALSE',
-    image_filename: stimulus.image_filename,
-    response: participantResponse,
-    is_correct: isCorrect === null ? null : (isCorrect ? 1 : 0), // Log 1 for correct, 0 for incorrect
-    rt_ms: responseResult.timedOut ? CONFIG.statementTimeoutDuration : Math.round(rt),
-    feedback_manipulation_type: feedbackManipulationType,
-    // Log which type of fact-check was shown (based on its correspondence to truth, not participant's response)
-    feedback_shown_fact_check_for: feedbackShownFactCheckFor === null ? null : (feedbackShownFactCheckFor ? 'TRUE_FACT_CHECK' : 'FALSE_FACT_CHECK'),
-  };
-  log(trialData); // Add this trial's data to the state.data array
-
-  // Inter-stimulus interval (brief pause)
-  show(''); // Clear the stage
-  await sleep(CONFIG.isiDuration);
+/* ----- block loop ----- */
+async function blockLoop(i){
+  if(i>=state.blockOrder.length) return finish();
+  await runBlock(state.blockOrder[i]);
+  blockLoop(i+1);
 }
 
-// ------------------- BLOCK 1: CONFIDENCE INDUCTION -------------------
-/**
- * Runs the first block of trials (Confidence Induction phase).
- */
-async function runBlock1() {
-  show(`<h2>Block 1: Judging Headlines</h2><p>Press SPACE to begin.</p>`);
-  await waitKeys([' ']); // Wait for spacebar press to start
-  for (let i = 0; i < state.inductionStatements.length; i++) {
-    // Run each trial in the induction set
-    await runSingleTrial(state.inductionStatements[i], 'ConfidenceInduction', i + 1);
-  }
-  runQuestionnaire('pre'); // After Block 1, run the 'pre' questionnaire
-}
+/* -------------- RUN BLOCK (Study → Distractor → Test) -------------- */
+async function runBlock(topic){
+  const pool = state.stimuliPool
+                .filter(s=>s.topic===topic && s.diff===state.difficulty);
+  if(pool.length<40) throw new Error('Insufficient stimuli');
 
-// ------------------- QUESTIONNAIRE -------------------
-/**
- * Displays and collects responses for the questionnaire.
- * Can be run at different times (e.g., 'pre' or 'post' manipulation).
- * @param {string} timing - Indicates when the questionnaire is being administered ('pre' or 'post').
- */
-async function runQuestionnaire(timing) {
-  // Define questionnaire questions
-  const questions = [
-    { id: 'q_own_ability', text: "How confident are you in your own ability to recognise news that is made up? (1-9)", type: 'number_1-9' },
-    { id: 'q_others_ability', text: "How confident are you in others’ ability to recognise news that is made up? (1-9)", type: 'number_1-9' },
-    { id: 'q_rank', text: "Compared with other people, where do you rank your ability? (1-100)", type: 'number_1-100' }
-  ];
+  const study     = randomSample(pool,20);
+  const newFoils  = randomSample(pool.filter(s=>!study.includes(s)),20);
+  const testList  = shuffle([...study,...newFoils]);
 
-  // Iterate through each question
-  for (const q of questions) {
+  /* ---- Study ---- */
+  show(`<h2>Study – ${topic}</h2><p>You will hear 20 sentences. Listen carefully.</p><p>Press SPACE to begin.</p>`);
+  await waitSpace();
+  for(let i=0;i<study.length;i++){
     show(`
-      <div class="questionnaire-container">
-        <p class="question-text">${q.text}</p>
-        ${q.type === 'number_1-100' ? '<input type="number" id="q_input" min="1" max="100" />' : ''}
-        ${q.type === 'number_1-9' ? '<p class="instructions">Press a number key (1-9)</p>' : '<button id="q_next">Next</button>'}
-      </div>
-    `);
-    let response;
-    if (q.type === 'number_1-9') { // For 1-9 scale questions, wait for a number key press
-      const validKeys = ['1','2','3','4','5','6','7','8','9'];
-      const key = await waitKeys(validKeys);
-      response = parseInt(key);
-    } else { // For 1-100 scale questions, use input field and next button
-      await new Promise(resolve => {
-        document.getElementById('q_next').onclick = () => {
-          const val = parseInt(document.getElementById('q_input').value);
-          if (val >= 1 && val <= 100) { // Validate input
-            response = val;
-            resolve();
-          } else {
-            alert('Please enter a number between 1 and 100.');
-          }
-        };
-      });
+      <div class="study-listen-screen">
+        <p class="fixation">+</p>
+        <p class="instruction">Listen carefully.</p>
+      </div>`);
+    await playAudio(study[i].file);
+    log({participant:state.participant,difficulty:state.difficulty,
+         topic,phase:'study',serialPos:i+1,
+         file:study[i].file,sentence:study[i].sentence});
+    await sleep(100);
+  }
+
+  /* ---- Distractor ---- */
+  await distractorPhase(topic);
+
+  /* ---- Test ---- */
+  show(`
+    <h2>Memory Test – ${topic}</h2>
+    <p>You will now see 40 sentences, one at a time.</p>
+    <p>Some sentences are OLD – you listened to them during the first part of the study. Others are NEW and were not played.</p>
+    <p>Your task is to decide for each sentence:</p>
+    <p>F = OLD</p>
+    <p>J = NEW</p>
+    <p>Guidelines:</p>
+    <ul style="list-style-type: disc; text-align: left; display: inline-block;">
+      <li>Respond as quickly and accurately as possible.</li>
+      <li>This test lets us measure how well people recall recently heard information after a short distraction task.</li>
+    </ul>
+    <p>Press the SPACEBAR when you are ready to begin.</p>
+  `);
+  await waitSpace();
+  for(const stim of testList){
+    show(`<div class="fixation-cross-container">+</div>`);
+    await sleep(CONFIG.fixationCrossDuration);
+    show(`
+      <div class="test-sentence-container">
+        <p style="font-size:1.5rem;">${stim.sentence}</p>
+        <p style="font-size:.8em;margin-top:1em;">(F = OLD &nbsp;|&nbsp; J = NEW)</p>
+      </div>`);
+    startClock = performance.now();
+    const key  = await waitKeys(['f','j']);
+    const rt   = performance.now() - startClock;
+    const isOld= study.includes(stim);
+    log({participant:state.participant,difficulty:state.difficulty,
+         topic,phase:'test',file:stim.file,sentence:stim.sentence,
+         isOld,serialPosTest:isOld?study.indexOf(stim)+1:-1,
+         respOld:key==='f',correct:(key==='f')===isOld,rt});
+  }
+}
+
+/* -------------- HELPERS -------------- */
+function playAudio(fname){
+  return new Promise(res=>{
+    const a=new Audio(`${CONFIG.audioDir}/${fname}`);
+    a.addEventListener('ended',()=>res());
+    a.play();
+  });
+}
+const waitSpace=()=>waitKeys([' ']);
+function waitKeys(valid){
+  valid = valid.map(k=>k.toLowerCase());
+  return new Promise(res=>{
+    function onKey(e){
+      const k=e.key.toLowerCase();
+      if(valid.includes(k)){
+        document.removeEventListener('keydown',onKey);
+        res(k);
+      }
     }
-    state[q.id + '_' + timing] = response; // Store response in the state object (e.g., state.q_own_ability_pre)
-  }
-
-  // Add questionnaire responses to the *last recorded trial's data row*.
-  // This is a specific way of logging questionnaire data, associating it with the most recent trial.
-  if (state.data.length > 0) {
-    const lastTrialData = state.data[state.data.length - 1];
-    lastTrialData[`q_own_ability_${timing}`] = state[`q_own_ability_${timing}`];
-    lastTrialData[`q_others_ability_${timing}`] = state[`q_others_ability_${timing}`];
-    lastTrialData[`q_rank_${timing}`] = state[`q_rank_${timing}`];
-  }
-
-  // Determine next step based on timing
-  if (timing === 'pre') {
-    runBlock2(); // If 'pre' questionnaire, proceed to Block 2
-  } else {
-    finishExperiment(); // If 'post' questionnaire, finish the experiment
-  }
+    document.addEventListener('keydown',onKey);
+  });
 }
 
-// ------------------- BLOCK 2: TRUTH TEST -------------------
-/**
- * Runs the second block of trials (Truth Test phase).
- * Feedback in this block is veridical (based on actual truth) for all groups.
- */
-async function runBlock2() {
-  show(`<h2>Block 2: Judging More Headlines</h2><p>Press SPACE to begin.</p>`);
-  await waitKeys([' ']);
-  for (let i = 0; i < state.testStatements.length; i++) {
-    // Run each trial in the test set
-    await runSingleTrial(state.testStatements[i], 'TruthTest', i + 1);
+/* ----- distractor count‑the‑high‑beeps ----- */
+async function distractorPhase(topic){
+  const numHigh = Math.floor(Math.random()*8)+1;  // 1‑8
+  const seq     = shuffle(Array(numHigh).fill('high')
+                   .concat(Array(8-numHigh).fill('low')));
+
+  show(`<h2>Counting task</h2><p>Count ONLY the high‑pitched beeps in 8 tones.</p><p>Press SPACE to start.</p>`);
+  await waitSpace();
+
+  let firstToneTime=0;
+  for(let i=0;i<seq.length;i++){
+    if(i===0) firstToneTime=performance.now();
+    await beep(seq[i]==='high'?1000:400,0.2);
+    await sleep(50);
   }
-  runQuestionnaire('post'); // After Block 2, run the 'post' questionnaire
+  show(`<p>How many high beeps? (Press 1‑8)</p>`);
+  const key = await waitKeys(['1','2','3','4','5','6','7','8']);
+  const rt  = performance.now()-firstToneTime;
+  log({participant:state.participant,difficulty:state.difficulty,
+       topic,phase:'distractor',trueHigh:numHigh,resp:+key,
+       corrDistractor:(+key)===numHigh,rt});
 }
 
-// ------------------- FINISH EXPERIMENT -------------------
-/**
- * Handles the end of the experiment: prepares data, attempts upload,
- * and provides fallback download if needed.
- */
-function finishExperiment(){
-  const csv = toCSV(state.data); // Convert all collected data to CSV format
-  // Create a unique filename including experiment name, participant ID, group, and timestamp
-  const fn  = `${CONFIG.experimentName}_${state.participant}_${state.group}_${Date.now()}.csv`;
-  
-  show('<h2>Uploading your data…</h2><p>Please wait.</p>'); // Inform participant about data upload
+/* -------------- FINISH -------------- */
+function finish(){
+  const csv = toCSV(state.data);
+  const fn  = `${CONFIG.experimentName}_${state.participant}_${Date.now()}.csv`;
 
-  uploadCSV(fn,csv) // Attempt to upload data to jsPsych data pipe
-    .then(r=>{ // Handle server response
-      if(!r.ok) throw new Error(`HTTP ${r.status} ${r.statusText}`); // Check for HTTP errors
-      return r.json(); // Parse response as JSON
+  show('<h2>Uploading your data…</h2><p>Please wait.</p>');
+  uploadCSV(fn,csv)
+    .then(r=>{
+      if(!r.ok) throw new Error(`HTTP ${r.status}`);
+      return r.json();
     })
-    // MODIFIED PART: Assume success if HTTP response is OK and JSON parses, like in Script 2
-    .then(() => { 
-        show('<h2>Upload complete!</h2><p>Thank you for your participation. You may now close this window.</p>');
-    })
-    .catch(err=>{ // Handle any errors during upload
+    .then(()=>show('<h2>Upload complete!</h2><p>You may now close this window.</p>'))
+    .catch(err=>{
       console.error('Upload failed:',err);
-      if(CONFIG.fallbackDownload){ // If fallback download is enabled
-        downloadCSV(csv,fn); // Trigger local download of the CSV file
-        show('<h2>Network error – data downloaded locally.</h2><p>Please ensure the downloaded CSV file is sent to the researcher. You may now close this window.</p>');
-      }else{ // If no fallback, inform user data could not be saved
+      if(CONFIG.fallbackDownload){
+        downloadCSV(csv,fn);
+        show('<h2>Network error – data downloaded locally.</h2><p>Please email the CSV to the researcher.</p>');
+      }else{
         show('<h2>Sorry – data could not be saved.</h2><p>Please screenshot this page and contact the researcher.</p>');
       }
     });
 }
 
-// ------------------- LAUNCH EXPERIMENT -------------------
-// Immediately Invoked Function Expression (IIFE) to start the experiment automatically.
-// Uses async/await for cleaner asynchronous flow.
+/* -------------- LAUNCH -------------- */
 (async()=>{
   try{
-    await loadCSVStimuli(); // First, load all necessary stimuli
-    introScreen();          // Then, show the introductory screen to start the experiment
-  }catch(e){ // Catch any errors during initialization (e.g., CSV loading failed)
-    console.error(e); // Log the error to the console
-    // Display an error message to the participant on the screen
-    show(`<p style="color:red;font-weight:bold;">Error: ${e.message}</p><p>Please check the browser console (Ctrl+Shift+J or Cmd+Opt+J) for more details and contact the researcher.</p>`);
+    await loadCSV();
+    intro();
+  }catch(e){
+    console.error(e);
+    show(`<p>Error: ${e.message}</p>`);
   }
 })();
 </script>
