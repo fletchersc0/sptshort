@@ -288,7 +288,20 @@ async function runBlock(topic){
   await distractorPhase(topic);
 
   /* ---- Test ---- */
-  show(`<h2>Memory Test – ${topic}</h2><p>OLD = F key &nbsp;&nbsp; NEW = J key</p><p>Press SPACE to start.</p>`);
+  show(`
+    <h2>Memory Test – ${topic}</h2>
+    <p>You will now see 40 sentences, one at a time.</p>
+    <p>Some sentences are OLD – you listened to them during the first part of the study. Others are NEW and were not played.</p>
+    <p>Your task is to decide for each sentence:</p>
+    <p>F = OLD</p>
+    <p>J = NEW</p>
+    <p>Guidelines:</p>
+    <ul style="list-style-type: disc; text-align: left; display: inline-block;">
+      <li>Respond as quickly and accurately as possible.</li>
+      <li>This test lets us measure how well people recall recently heard information after a short distraction task.</li>
+    </ul>
+    <p>Press the SPACEBAR when you are ready to begin.</p>
+  `);
   await waitSpace();
   for(const stim of testList){
     show(`<div class="fixation-cross-container">+</div>`);
