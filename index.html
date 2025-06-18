@@ -79,6 +79,24 @@
     }
     .button-bar { margin-top: 1.5rem; text-align: center; }
 
+    /* --- PIS Full-Screen Mode --- */
+    body.pis-mode {
+      align-items: flex-start;
+      justify-content: center;
+    }
+    body.pis-mode #stage {
+      padding-top: 4vh;
+      padding-bottom: 4vh;
+      text-align: left;
+    }
+    body.pis-mode .pis-content {
+      height: auto;
+      overflow-y: visible;
+      border: none;
+      padding: 0;
+      background: none;
+      margin-bottom: 0;
+    }
 
     /* ---------- Experiment‑specific helpers ---------- */
     .fixation-cross-container{
@@ -236,12 +254,14 @@ async function showPIS() {
   }
   const pisHtml = await response.text();
 
+  document.body.classList.add('pis-mode'); // ★ ADD CLASS FOR FULL-SCREEN PIS
+
   show(`
     <div class="form-container">
       <h1>Participant Information Sheet</h1>
       <div class="pis-content"></div>
       <div class="button-bar">
-        <button id="download-pis">Download PIS</button>
+        <button id="download-pis">Download PIS as PDF</button>
         <button id="agree-pis">I have read the information and agree to participate</button>
       </div>
     </div>
@@ -249,12 +269,21 @@ async function showPIS() {
   
   document.querySelector('.pis-content').innerHTML = pisHtml;
   
+  // ★ MODIFIED: Download PIS.pdf instead of generating HTML
   document.getElementById('download-pis').onclick = () => {
-    downloadFile(pisHtml, 'PIS.html', 'text/html');
+    const a = document.createElement('a');
+    a.href = 'PIS.pdf'; // Link to the actual PDF file
+    a.download = 'Participant-Information-Sheet.pdf'; // Suggested filename
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
   };
 
   return new Promise(resolve => {
-    document.getElementById('agree-pis').onclick = resolve;
+    document.getElementById('agree-pis').onclick = () => {
+      document.body.classList.remove('pis-mode'); // ★ REMOVE CLASS
+      resolve();
+    };
   });
 }
 
