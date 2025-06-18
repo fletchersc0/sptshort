@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Debriefing Statement – Auditory recall for voice-only information retrieval</title>
+  <style>
+    body { font-family: Arial, sans-serif; line-height: 1.6; margin: 2rem; max-width: 900px; }
+    h1 { font-size: 1.8em; margin-bottom: 0.4em; }
+    h2 { font-size: 1.25em; margin-top: 1.8em; }
+    ul { margin-left: 1.2em; }
+    a { color: #0645AD; text-decoration: none; }
+    a:hover { text-decoration: underline; }
+  </style>
+</head>
+<body>
+<h1>Debriefing Statement</h1>
+<p><strong>Title:</strong> Auditory recall for voice-only information retrieval<br>
+<strong>Principal Investigator / Senior Supervisor:</strong> Dr&nbsp;Damiano&nbsp;Spina<br>
+<strong>Principal Research Students:</strong> Fletcher&nbsp;Scott, Kaixin&nbsp;Ji, Sachin&nbsp;Pathiyan&nbsp;Cherumanal</p>
+
+<h2>Thank you for participating</h2>
+<p>The research team thanks you for taking part in this project.</p>
+
+<h2>What did this study involve?</h2>
+<p>During the experiment you listened to a series of spoken statements and, on each trial, indicated whether a statement had appeared in a prior list (<em>“old”</em>) or was new. The aim was to understand how people remember information delivered by voice‑only search systems (e.g.&nbsp;Siri, Google&nbsp;Home) and how memory performance can be enhanced.</p>
+<p>Unlike screen‑based searches—where results can be reviewed at your own pace—voice interfaces present information sequentially, making it harder to revisit earlier content. Building on the <em>serial‑position effect</em> (better recall of items at the beginning and end of a list), we examined how presentation order influences recall when answers are delivered aloud.</p>
+
+<h2>Experimental conditions</h2>
+<p>Participants were randomly assigned to conditions in which the spoken statements differed in linguistic complexity. By comparing recall across these conditions, we can determine whether the extra effort required to process more complex language helps or hinders memory.</p>
+
+<h2>Support resources</h2>
+<p>If any questions or topics raised in this study have negatively affected your mood, self‑esteem, or psychological state, please consult your GP or make use of the following support options:</p>
+<ul>
+  <li><strong>Checkpoint – Let’s Talk About Mental Health</strong><br>
+      Website: <a href="https://checkpointorg.com/global/">https://checkpointorg.com/global/</a></li>
+  <li><strong>Let’s Talk About Mental Health</strong><br>
+      Website: <a href="https://letstalkaboutmentalhealth.com.au">https://letstalkaboutmentalhealth.com.au</a></li>
+</ul>
+
+<h2>Ethics information</h2>
+<p>This research was approved by the RMIT University Human Research Ethics Committee (HREC; ethics number provided in the main study information). If you have any concerns about this project, please contact:</p>
+<p>Pascal&nbsp;Bernard, Manager, Research Governance and Ethics<br>
+Email: <a href="mailto:humanethics@rmit.edu.au">humanethics@rmit.edu.au</a><br>
+Tel: +61&nbsp;3&nbsp;9925&nbsp;1985</p>
+
+<h2>Next steps</h2>
+<p>Please click the arrow below to be redirected to Prolific.</p>
+
+</body>
+</html>
