@@ -88,6 +88,7 @@
       padding-top: 4vh;
       padding-bottom: 4vh;
       text-align: left;
+      max-width: 900px; /* ★ Widen PIS container */
     }
     body.pis-mode .pis-content {
       height: auto;
@@ -96,7 +97,16 @@
       padding: 0;
       background: none;
       margin-bottom: 0;
+      line-height: 1.6; /* ★ Add line-height for readability */
     }
+    /* ★ Styles from PIS.txt for clean formatting */
+    .pis-content h1 { font-size: 1.8em; margin-bottom: 0.4em; }
+    .pis-content h2 { font-size: 1.25em; margin-top: 1.8em; }
+    .pis-content ul { margin-left: 1.2em; text-align: left; }
+    .pis-content p { text-align: left; }
+    .pis-content a { color: #0645AD; text-decoration: none; }
+    .pis-content a:hover { text-decoration: underline; }
+
 
     /* ---------- Experiment‑specific helpers ---------- */
     .fixation-cross-container{
@@ -252,9 +262,14 @@ async function showPIS() {
     show('<h2>Error</h2><p>Could not load the Participant Information Sheet. Please contact the researcher.</p>');
     throw new Error('Failed to fetch PIS file');
   }
-  const pisHtml = await response.text();
+  const pisText = await response.text();
 
-  document.body.classList.add('pis-mode'); // ★ ADD CLASS FOR FULL-SCREEN PIS
+  // ★ Use DOMParser to robustly extract only the body content from the PIS HTML file
+  const parser = new DOMParser();
+  const pisDoc = parser.parseFromString(pisText, 'text/html');
+  const pisBodyContent = pisDoc.body.innerHTML;
+
+  document.body.classList.add('pis-mode');
 
   show(`
     <div class="form-container">
@@ -267,13 +282,12 @@ async function showPIS() {
     </div>
   `);
   
-  document.querySelector('.pis-content').innerHTML = pisHtml;
+  document.querySelector('.pis-content').innerHTML = pisBodyContent;
   
-  // ★ MODIFIED: Download PIS.pdf instead of generating HTML
   document.getElementById('download-pis').onclick = () => {
     const a = document.createElement('a');
-    a.href = 'PIS.pdf'; // Link to the actual PDF file
-    a.download = 'Participant-Information-Sheet.pdf'; // Suggested filename
+    a.href = 'PIS.pdf';
+    a.download = 'Participant-Information-Sheet.pdf';
     document.body.appendChild(a);
     a.click();
     document.body.removeChild(a);
@@ -281,7 +295,7 @@ async function showPIS() {
 
   return new Promise(resolve => {
     document.getElementById('agree-pis').onclick = () => {
-      document.body.classList.remove('pis-mode'); // ★ REMOVE CLASS
+      document.body.classList.remove('pis-mode');
       resolve();
     };
   });
