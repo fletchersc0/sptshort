@@ -32,13 +32,16 @@
       text-align:center;
     }
     button,
-    input[type=text]{
+    input[type=text],
+    input[type=number],
+    select {
       font-size:1rem;
       padding:.5rem 1rem;
       margin:.3rem;
       background:var(--input-bg);
       color:var(--fg);
       border:1px solid var(--border-color);
+      border-radius: 4px;
     }
     button{
       cursor:pointer;
@@ -49,6 +52,33 @@
       border-color:#555;
     }
     audio{ display:none; }
+    
+    /* --- Form & Questionnaire Styles --- */
+    .form-container {
+      text-align:left;
+      display:inline-block;
+      max-width: 600px;
+      width: 100%;
+    }
+    .form-container p { text-align:center; }
+    .form-container label {
+      display: block;
+      margin-top: 1rem;
+      margin-bottom: .25rem;
+      font-weight: bold;
+    }
+    .form-container input[type=radio] { margin-right: .5rem; }
+    .pis-content {
+      height: 300px;
+      overflow-y: scroll;
+      border: 1px solid var(--border-color);
+      padding: 1rem;
+      text-align: left;
+      margin-bottom: 1rem;
+      background: var(--input-bg);
+    }
+    .button-bar { margin-top: 1.5rem; text-align: center; }
+
 
     /* ---------- Experiment‑specific helpers ---------- */
     .fixation-cross-container{
@@ -73,9 +103,9 @@
 <script>
 /* ===================================================================
  * SERIAL‑POSITION MEMORY TASK  (HTML + Vanilla JS)
- * – Study (20 audio sentences)            – no response
+ * – Study (15 audio sentences)            – no response
  * – Distractor (count high beeps)         – numeric response
- * – Test   (40 text sentences OLD/NEW)    – F=OLD  J=NEW
+ * – Test   (30 text sentences OLD/NEW)    – F=OLD  J=NEW
  * – Data sent to DataPipe → OSF           – CSV fallback download
  * =================================================================== */
 
@@ -84,6 +114,7 @@ const CONFIG = {
   experimentName       : 'Audio Task',
   audioDir             : 'audio',               // audio/*.wav
   csvFile              : 'stimulus_master.csv', // stimuli list
+  pisFile              : 'PIS.txt',             // <-- NEW: PIS file
   responseKeys         : { old:'f', new:'j' },
   dataPipeID           : 'qWHxwr6D720q',        // ← your real DataPipe ID
   fallbackDownload     : true,                  // save CSV locally on failure
@@ -94,7 +125,9 @@ const CONFIG = {
     'participant','difficulty','topic','phase',
     'file','sentence','serialPos',
     'isOld','serialPosTest','respOld','correct',
-    'trueHigh','resp','corrDistractor','rt'
+    'trueHigh','resp','corrDistractor','rt',
+    /* -- NEW -- */
+    'age','gender','education','familiarityChess','familiarityCloud','randomResponses'
   ]
 };
 
@@ -110,7 +143,8 @@ const state = {
   difficulty  : '',
   blockOrder  : [],
   stimuliPool : [],
-  data        : []
+  data        : [],
+  questionnaire: {}
 };
 
 const stage      = document.getElementById('stage');
@@ -183,8 +217,8 @@ function uploadCSV(filename,csv){
 }
 
 /* ----- Fallback local download ----- */
-function downloadCSV(csv,fn){
-  const blob=new Blob([csv],{type:'text/csv'});
+function downloadFile(content, fn, type){
+  const blob=new Blob([content],{type:type});
   const url =URL.createObjectURL(blob);
   const a   =document.createElement('a');
   a.href=url; a.download=fn; a.click();
@@ -193,6 +227,215 @@ function downloadCSV(csv,fn){
 
 /* ----- helper to swap stage HTML ----- */
 const show = html => stage.innerHTML = html;
+
+/* ==================================================================
+ * ======================= NEW FUNCTIONALITIES ======================
+ * ================================================================== */
+
+/* -------------- PIS & PRE-SCREENING -------------- */
+
+async function showPIS() {
+  // --- MODIFIED: Fetch PIS from external file ---
+  const response = await fetch(CONFIG.pisFile);
+  if (!response.ok) {
+    show('<h2>Error</h2><p>Could not load the Participant Information Sheet. Please contact the researcher.</p>');
+    throw new Error('Failed to fetch PIS file');
+  }
+  const pisHtml = await response.text();
+
+  show(`
+    <div class="form-container">
+      <h1>Participant Information Sheet</h1>
+      <div class="pis-content"></div>
+      <div class="button-bar">
+        <button id="download-pis">Download PIS</button>
+        <button id="agree-pis">I have read the information and agree to participate</button>
+      </div>
+    </div>
+  `);
+  
+  // Inject the fetched HTML content
+  document.querySelector('.pis-content').innerHTML = pisHtml;
+  
+  document.getElementById('download-pis').onclick = () => {
+    // MODIFIED: Download as .html file
+    downloadFile(pisHtml, 'PIS.html', 'text/html');
+  };
+
+  return new Promise(resolve => {
+    document.getElementById('agree-pis').onclick = resolve;
+  });
+}
+
+async function showScreening() {
+  show(`
+    <div class="form-container">
+      <h1>Pre-Screening</h1>
+      <p>Before we begin, please answer the following questions.</p>
+      
+      <label>1. Are you using headphones and in a quiet environment?</label>
+      <input type="radio" name="env" value="yes" id="env-yes"><label for="env-yes">Yes</label>
+      <input type="radio" name="env" value="no" id="env-no"><label for="env-no">No</label>
+
+      <label>2. Can you commit to giving this task your undivided attention?</label>
+      <input type="radio" name="attn" value="yes" id="attn-yes"><label for="attn-yes">Yes</label>
+      <input type="radio" name="attn" value="no" id="attn-no"><label for="attn-no">No</label>
+
+      <div class="button-bar">
+        <button id="continue-screening">Continue</button>
+      </div>
+    </div>
+  `);
+
+  return new Promise(resolve => {
+    document.getElementById('continue-screening').onclick = () => {
+      const env_ok = document.getElementById('env-yes').checked;
+      const attn_ok = document.getElementById('attn-yes').checked;
+      if (env_ok && attn_ok) {
+        resolve();
+      } else {
+        show('<h2>Participation Requirements Not Met</h2><p>This experiment requires headphones, a quiet environment, and your full attention. Thank you for your interest.</p>');
+      }
+    };
+  });
+}
+
+/* -------------- POST-TASK QUESTIONNAIRES -------------- */
+
+async function showDemographics() {
+  show(`
+    <div class="form-container">
+      <h1>Demographic Information</h1>
+      <p>Please provide the following information.</p>
+
+      <label for="age">Age:</label>
+      <input type="number" id="age" name="age" min="18" max="100" required>
+
+      <label for="gender">Gender:</label>
+      <select id="gender" name="gender" required>
+        <option value="" disabled selected>Select an option</option>
+        <option value="male">Male</option>
+        <option value="female">Female</option>
+        <option value="nonbinary">Non-binary</option>
+        <option value="other">Other</option>
+        <option value="prefer_not_to_say">Prefer not to say</option>
+      </select>
+
+      <label for="education">Highest level of education completed:</label>
+      <select id="education" name="education" required>
+        <option value="" disabled selected>Select an option</option>
+        <option value="high_school">High School</option>
+        <option value="bachelors">Bachelor's Degree</option>
+        <option value="masters">Master's Degree</option>
+        <option value="phd">Doctorate (PhD)</option>
+        <option value="other">Other</option>
+      </select>
+      
+      <div class="button-bar">
+        <button id="continue-demographics">Continue</button>
+      </div>
+    </div>
+  `);
+
+  return new Promise(resolve => {
+    document.getElementById('continue-demographics').onclick = () => {
+      const age = document.getElementById('age').value;
+      const gender = document.getElementById('gender').value;
+      const education = document.getElementById('education').value;
+
+      if (age && gender && education) {
+        state.questionnaire.age = age;
+        state.questionnaire.gender = gender;
+        state.questionnaire.education = education;
+        resolve();
+      } else {
+        alert('Please complete all fields.');
+      }
+    };
+  });
+}
+
+async function showPostTask() {
+  show(`
+    <div class="form-container">
+      <h1>Post-Task Questions</h1>
+      <p>Please answer a few final questions about your experience.</p>
+
+      <label>How familiar are you with the topic of Chess? (1=Not familiar, 5=Very familiar)</label>
+      <div>
+        <input type="radio" name="fam_chess" value="1"> 1
+        <input type="radio" name="fam_chess" value="2"> 2
+        <input type="radio" name="fam_chess" value="3"> 3
+        <input type="radio" name="fam_chess" value="4"> 4
+        <input type="radio" name="fam_chess" value="5"> 5
+      </div>
+
+      <label>How familiar are you with the topic of Cloud Computing? (1=Not familiar, 5=Very familiar)</label>
+      <div>
+        <input type="radio" name="fam_cloud" value="1"> 1
+        <input type="radio" name="fam_cloud" value="2"> 2
+        <input type="radio" name="fam_cloud" value="3"> 3
+        <input type="radio" name="fam_cloud" value="4"> 4
+        <input type="radio" name="fam_cloud" value="5"> 5
+      </div>
+      
+      <label>Did you respond randomly at any point during the memory test?</label>
+      <input type="radio" name="random" value="yes" id="random-yes"><label for="random-yes">Yes</label>
+      <input type="radio" name="random" value="no" id="random-no"><label for="random-no">No</label>
+
+      <div class="button-bar">
+        <button id="continue-post-task">Finish Experiment</button>
+      </div>
+    </div>
+  `);
+
+  return new Promise(resolve => {
+    document.getElementById('continue-post-task').onclick = () => {
+      const famChess = document.querySelector('input[name="fam_chess"]:checked');
+      const famCloud = document.querySelector('input[name="fam_cloud"]:checked');
+      const random = document.querySelector('input[name="random"]:checked');
+
+      if (famChess && famCloud && random) {
+        state.questionnaire.familiarityChess = famChess.value;
+        state.questionnaire.familiarityCloud = famCloud.value;
+        state.questionnaire.randomResponses = random.value;
+        resolve();
+      } else {
+        alert('Please answer all questions.');
+      }
+    };
+  });
+}
+
+function mergeData() {
+  state.data.forEach(row => {
+    Object.assign(row, state.questionnaire);
+  });
+}
+
+function showDebrief(success = true) {
+  const successMessage = '<h2>Upload complete!</h2><p>Thank you for your participation. You may now close this window.</p>';
+  const failureMessage = `
+    <h2>Network error – data downloaded locally.</h2>
+    <p>There was an issue uploading your data. A file containing your data has been downloaded to your computer instead.</p>
+    <p>Please email this CSV file to the researcher.</p>`;
+  const genericFailureMessage = '<h2>Sorry – data could not be saved.</h2><p>Please screenshot this page and contact the researcher.</p>';
+
+  if (success) {
+    show(successMessage);
+  } else {
+    if (CONFIG.fallbackDownload) {
+      show(failureMessage);
+    } else {
+      show(genericFailureMessage);
+    }
+  }
+}
+
+/* ==================================================================
+ * ======================= CORE EXPERIMENT LOGIC ====================
+ * ================================================================== */
+
 
 /* -------------- LOAD STIMULI CSV -------------- */
 async function loadCSV(){
@@ -253,7 +496,12 @@ async function intro(){
 
 /* ----- block loop ----- */
 async function blockLoop(i){
-  if(i>=state.blockOrder.length) return finish();
+  if(i>=state.blockOrder.length) {
+    await showDemographics();
+    await showPostTask();
+    await finishExperiment();
+    return;
+  }
   await runBlock(state.blockOrder[i]);
   blockLoop(i+1);
 }
@@ -262,14 +510,14 @@ async function blockLoop(i){
 async function runBlock(topic){
   const pool = state.stimuliPool
                 .filter(s=>s.topic===topic && s.diff===state.difficulty);
-  if(pool.length<40) throw new Error('Insufficient stimuli');
+  if(pool.length<30) throw new Error('Insufficient stimuli');
 
-  const study     = randomSample(pool,20);
-  const newFoils  = randomSample(pool.filter(s=>!study.includes(s)),20);
+  const study     = randomSample(pool,15);
+  const newFoils  = randomSample(pool.filter(s=>!study.includes(s)),15);
   const testList  = shuffle([...study,...newFoils]);
 
   /* ---- Study ---- */
-  show(`<h2>Study – ${topic}</h2><p>You will hear 20 sentences. Listen carefully.</p><p>Press SPACE to begin.</p>`);
+  show(`<h2>Study – ${topic}</h2><p>You will hear 15 sentences. Listen carefully.</p><p>Press SPACE to begin.</p>`);
   await waitSpace();
   for(let i=0;i<study.length;i++){
     show(`
@@ -290,7 +538,7 @@ async function runBlock(topic){
   /* ---- Test ---- */
   show(`
     <h2>Memory Test – ${topic}</h2>
-    <p>You will now see 40 sentences, one at a time.</p>
+    <p>You will now see 30 sentences, one at a time.</p>
     <p>Some sentences are OLD – you listened to them during the first part of the study. Others are NEW and were not played.</p>
     <p>Your task is to decide for each sentence:</p>
     <p>F = OLD</p>
@@ -368,8 +616,9 @@ async function distractorPhase(topic){
        corrDistractor:(+key)===numHigh,rt});
 }
 
-/* -------------- FINISH -------------- */
-function finish(){
+/* -------------- FINISH & UPLOAD -------------- */
+function finishExperiment(){
+  mergeData();
   const csv = toCSV(state.data);
   const fn  = `${CONFIG.experimentName}_${state.participant}_${Date.now()}.csv`;
 
@@ -379,15 +628,13 @@ function finish(){
       if(!r.ok) throw new Error(`HTTP ${r.status}`);
       return r.json();
     })
-    .then(()=>show('<h2>Upload complete!</h2><p>You may now close this window.</p>'))
+    .then(()=>showDebrief(true))
     .catch(err=>{
       console.error('Upload failed:',err);
       if(CONFIG.fallbackDownload){
-        downloadCSV(csv,fn);
-        show('<h2>Network error – data downloaded locally.</h2><p>Please email the CSV to the researcher.</p>');
-      }else{
-        show('<h2>Sorry – data could not be saved.</h2><p>Please screenshot this page and contact the researcher.</p>');
+        downloadFile(csv,fn, 'text/csv');
       }
+      showDebrief(false);
     });
 }
 
@@ -395,6 +642,8 @@ function finish(){
 (async()=>{
   try{
     await loadCSV();
+    await showPIS();
+    await showScreening();
     intro();
   }catch(e){
     console.error(e);
