@@ -1,0 +1,92 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Participant Information Sheet – Auditory recall for voice-only information retrieval</title>
+  <style>
+    body { font-family: Arial, sans-serif; line-height: 1.6; margin: 2rem; max-width: 900px; }
+    h1 { font-size: 1.8em; margin-bottom: 0.4em; }
+    h2 { font-size: 1.25em; margin-top: 1.8em; }
+    ul { margin-left: 1.2em; }
+    a { color: #0645AD; text-decoration: none; }
+    a:hover { text-decoration: underline; }
+  </style>
+</head>
+<body>
+<h1>Participant Information Sheet</h1>
+<p><strong>Title:</strong> Auditory recall for voice-only information retrieval<br>
+<strong>Principal Investigator / Senior Supervisor:</strong> Dr&nbsp;Damiano&nbsp;Spina<br>
+<strong>Principal Research Students:</strong> Fletcher&nbsp;Scott, Kaixin&nbsp;Ji, Sachin&nbsp;Pathiyan&nbsp;Cherumanal</p>
+
+<h2>1. Introduction</h2>
+<p>You are invited to take part in the research project <em>Auditory recall for voice-only information retrieval</em>. This sheet explains what the project involves so you can decide whether to participate.</p>
+<p>Please read it carefully and discuss it with others if you wish. Participation is voluntary: you may decline or withdraw at any time. Continuing to the task after reading this sheet indicates your consent.</p>
+<p>By completing the task you confirm that you:</p>
+<ul>
+  <li>Understand what you have read,</li>
+  <li>Consent to take part in the research project,</li>
+  <li>Allow your anonymous data to be shared for future research as described in Section&nbsp;10.</li>
+</ul>
+
+<h2>2. What is the purpose of this research?</h2>
+<p>Memory research shows that recall depends on factors such as temporal decay and working‑memory limits, but most evidence comes from screen‑based interfaces. Voice‑only spoken conversational search (e.g., Siri, Google Home, ChatGPT voice) is increasingly common, yet we know little about how audio‑only interaction shapes memory and information‑seeking behaviour.</p>
+<p>This study investigates how well people remember spoken information. It is conducted by Dr&nbsp;Damiano&nbsp;Spina and PhD candidates Fletcher&nbsp;Scott, Kaixin&nbsp;Ji, and Sachin&nbsp;Pathiyan&nbsp;Cherumanal. Findings will contribute to their PhD dissertations and are funded by the ARC Centre of Excellence for Automated Decision‑Making and Society.</p>
+
+<h2>3. What does participation involve?</h2>
+<p><strong>Screening (≈1&nbsp;min):</strong> A single age question checks eligibility.<br>
+<strong>Main task (≈14&nbsp;min):</strong> Eligible participants memorise several neutral phrases delivered by audio, then answer recall questions and non‑identifying demographic items.</p>
+<p>You will be paid AUD&nbsp;$7. There are no costs to you.</p>
+
+<h2>4. Other relevant information</h2>
+<p>The study aims to enrol approximately 50 participants.</p>
+
+<h2>5. Do I have to take part?</h2>
+<p>No. Participation is voluntary. You may withdraw before submitting your responses; once submitted, data are anonymous and cannot be withdrawn. Your decision will not affect your relationship with the researchers or RMIT University.</p>
+
+<h2>6. Possible benefits</h2>
+<p>There is no guaranteed personal benefit, but you may enjoy contributing to research and learning about an unfamiliar topic. The results will inform the design of voice‑based systems that support effective decision‑making.</p>
+
+<h2>7. Risks and disadvantages</h2>
+<p><strong>Psychological distress:</strong> Some questions may be uncomfortable. You may skip any question or stop at any point. For support, see <em>Let’s Talk About Mental Health</em> or <em>Checkpoint</em>, or contact your GP.</p>
+<p><strong>Privacy:</strong> Data are collected in Qualtrics without personal identifiers, transferred to secure RMIT storage for five years, then the Qualtrics copy is erased.</p>
+
+<h2>8. Withdrawing from the project</h2>
+<p>You may exit the survey at any time before submission. Because responses are anonymous, submitted data cannot be linked to you or withdrawn.</p>
+
+<h2>9. After the project ends</h2>
+<p>Email Fletcher&nbsp;Scott (<a href="mailto:s3954401@student.rmit.edu.au">s3954401@student.rmit.edu.au</a>) or Dr&nbsp;Damiano&nbsp;Spina (<a href="mailto:damiano.spina@rmit.edu.au">damiano.spina@rmit.edu.au</a>) after December&nbsp;2025 to receive a summary of results.</p>
+
+<h2>10. Data handling</h2>
+<p>Your anonymous data may be published, archived indefinitely, and reused by other researchers. No personal identifiers are collected.</p>
+
+<h2>11. Organisation and funding</h2>
+<p>Conducted by Dr&nbsp;Damiano&nbsp;Spina, Fletcher&nbsp;Scott, Kaixin&nbsp;Ji, and Sachin&nbsp;Pathiyan&nbsp;Cherumanal. Funded by the ARC Centre of Excellence for Automated Decision‑Making and Society.</p>
+
+<h2>12. Ethics review</h2>
+<p>Approved by an RMIT University Human Research Ethics Committee, in line with the <em>National Statement on Ethical Conduct in Human Research&nbsp;(2023)</em>.</p>
+
+<h2>13. Contacts</h2>
+<p><strong>Research team</strong><br>
+Dr&nbsp;Damiano&nbsp;Spina – +61&nbsp;3&nbsp;9925&nbsp;0941, <a href="mailto:damiano.spina@rmit.edu.au">damiano.spina@rmit.edu.au</a><br>
+Fletcher&nbsp;Scott – <a href="mailto:s3954401@student.rmit.edu.au">s3954401@student.rmit.edu.au</a><br>
+Kaixin&nbsp;Ji – <a href="mailto:s3928927@student.rmit.edu.au">s3928927@student.rmit.edu.au</a><br>
+Sachin&nbsp;Pathiyan&nbsp;Cherumanal – <a href="mailto:s3874326@student.rmit.edu.au">s3874326@student.rmit.edu.au</a></p>
+
+<h2>14. Complaints</h2>
+<p>If you have concerns you prefer not to raise with the researchers, contact:<br>
+Pascal&nbsp;Bernard, HREC Secretary, RMIT University<br>
+Tel&nbsp;03&nbsp;9925&nbsp;1985 | Email <a href="mailto:humanethics@rmit.edu.au">humanethics@rmit.edu.au</a><br>
+Manager, Research Governance &amp; Ethics, GPO&nbsp;Box&nbsp;2476, Melbourne&nbsp;VIC&nbsp;3001</p>
+
+<h2>Acknowledgement by Participant</h2>
+<p>By continuing to the survey, you confirm that you:</p>
+<ul>
+  <li>Have read and understood this Participant Information Sheet,</li>
+  <li>Understand the purpose, procedures and risks of the research,</li>
+  <li>Have had the opportunity to ask questions,</li>
+  <li>Freely agree to participate and understand you may withdraw at any stage before submission,</li>
+  <li>Understand you can print or download a copy of this document.</li>
+</ul>
+
+</body>
+</html>
