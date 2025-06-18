@@ -68,7 +68,7 @@
       font-weight: bold;
     }
     .form-container input[type=radio] { margin-right: .5rem; }
-    .pis-content {
+    .pis-content { /* Also used for debrief */
       height: 300px;
       overflow-y: scroll;
       border: 1px solid var(--border-color);
@@ -114,7 +114,8 @@ const CONFIG = {
   experimentName       : 'Audio Task',
   audioDir             : 'audio',               // audio/*.wav
   csvFile              : 'stimulus_master.csv', // stimuli list
-  pisFile              : 'PIS.txt',             // <-- NEW: PIS file
+  pisFile              : 'PIS.txt',             // PIS file
+  debriefFile          : 'debrief.txt',         // <-- NEW: Debrief file
   responseKeys         : { old:'f', new:'j' },
   dataPipeID           : 'qWHxwr6D720q',        // ← your real DataPipe ID
   fallbackDownload     : true,                  // save CSV locally on failure
@@ -126,7 +127,6 @@ const CONFIG = {
     'file','sentence','serialPos',
     'isOld','serialPosTest','respOld','correct',
     'trueHigh','resp','corrDistractor','rt',
-    /* -- NEW -- */
     'age','gender','education','familiarityChess','familiarityCloud','randomResponses'
   ]
 };
@@ -160,7 +160,6 @@ const shuffle = arr=>{
 };
 const randomSample=(arr,n)=>shuffle([...arr]).slice(0,n);
 
-/* ----- audio beep for distractor ----- */
 function beep(freq,dur=0.2){
   return new Promise(res=>{
     const ctx=new (window.AudioContext||window.webkitAudioContext)();
@@ -176,7 +175,6 @@ function beep(freq,dur=0.2){
   });
 }
 
-/* ----- log → state.data (booleans → 0/1; rt → seconds) ----- */
 function log(row){
   ['isOld','respOld','correct','corrDistractor']
     .forEach(k=>{ if(k in row) row[k]=row[k]?1:0; });
@@ -184,12 +182,10 @@ function log(row){
   state.data.push(row);
 }
 
-/* ----- array of objects → CSV (fixed header) ----- */
 function toCSV(rows){
   if (!rows.length) return '';
   const header = CONFIG.masterHeader;
   const lines  = [header.join(',')];
-
   rows.forEach(r=>{
     const line = header.map(k=>{
       let cell = (k in r && r[k]!==undefined) ? r[k] : '';
@@ -203,7 +199,6 @@ function toCSV(rows){
   return lines.join('\n');
 }
 
-/* ----- UPLOAD CSV via DataPipe (JSON wrapper) ----- */
 function uploadCSV(filename,csv){
   return fetch('https://pipe.jspsych.org/api/data',{
     method :'POST',
@@ -216,7 +211,6 @@ function uploadCSV(filename,csv){
   });
 }
 
-/* ----- Fallback local download ----- */
 function downloadFile(content, fn, type){
   const blob=new Blob([content],{type:type});
   const url =URL.createObjectURL(blob);
@@ -225,8 +219,8 @@ function downloadFile(content, fn, type){
   URL.revokeObjectURL(url);
 }
 
-/* ----- helper to swap stage HTML ----- */
 const show = html => stage.innerHTML = html;
+
 
 /* ==================================================================
  * ======================= NEW FUNCTIONALITIES ======================
@@ -235,7 +229,6 @@ const show = html => stage.innerHTML = html;
 /* -------------- PIS & PRE-SCREENING -------------- */
 
 async function showPIS() {
-  // --- MODIFIED: Fetch PIS from external file ---
   const response = await fetch(CONFIG.pisFile);
   if (!response.ok) {
     show('<h2>Error</h2><p>Could not load the Participant Information Sheet. Please contact the researcher.</p>');
@@ -254,11 +247,9 @@ async function showPIS() {
     </div>
   `);
   
-  // Inject the fetched HTML content
   document.querySelector('.pis-content').innerHTML = pisHtml;
   
   document.getElementById('download-pis').onclick = () => {
-    // MODIFIED: Download as .html file
     downloadFile(pisHtml, 'PIS.html', 'text/html');
   };
 
@@ -363,20 +354,12 @@ async function showPostTask() {
 
       <label>How familiar are you with the topic of Chess? (1=Not familiar, 5=Very familiar)</label>
       <div>
-        <input type="radio" name="fam_chess" value="1"> 1
-        <input type="radio" name="fam_chess" value="2"> 2
-        <input type="radio" name="fam_chess" value="3"> 3
-        <input type="radio" name="fam_chess" value="4"> 4
-        <input type="radio" name="fam_chess" value="5"> 5
+        <input type="radio" name="fam_chess" value="1"> 1 <input type="radio" name="fam_chess" value="2"> 2 <input type="radio" name="fam_chess" value="3"> 3 <input type="radio" name="fam_chess" value="4"> 4 <input type="radio" name="fam_chess" value="5"> 5
       </div>
 
       <label>How familiar are you with the topic of Cloud Computing? (1=Not familiar, 5=Very familiar)</label>
       <div>
-        <input type="radio" name="fam_cloud" value="1"> 1
-        <input type="radio" name="fam_cloud" value="2"> 2
-        <input type="radio" name="fam_cloud" value="3"> 3
-        <input type="radio" name="fam_cloud" value="4"> 4
-        <input type="radio" name="fam_cloud" value="5"> 5
+        <input type="radio" name="fam_cloud" value="1"> 1 <input type="radio" name="fam_cloud" value="2"> 2 <input type="radio" name="fam_cloud" value="3"> 3 <input type="radio" name="fam_cloud" value="4"> 4 <input type="radio" name="fam_cloud" value="5"> 5
       </div>
       
       <label>Did you respond randomly at any point during the memory test?</label>
@@ -413,17 +396,28 @@ function mergeData() {
   });
 }
 
-function showDebrief(success = true) {
-  const successMessage = '<h2>Upload complete!</h2><p>Thank you for your participation. You may now close this window.</p>';
-  const failureMessage = `
-    <h2>Network error – data downloaded locally.</h2>
-    <p>There was an issue uploading your data. A file containing your data has been downloaded to your computer instead.</p>
-    <p>Please email this CSV file to the researcher.</p>`;
-  const genericFailureMessage = '<h2>Sorry – data could not be saved.</h2><p>Please screenshot this page and contact the researcher.</p>';
-
+// --- MODIFIED: showDebrief is now async and fetches external file ---
+async function showDebrief(success = true) {
   if (success) {
+    const response = await fetch(CONFIG.debriefFile);
+    const debriefHtml = response.ok ? await response.text() : '<p>Thank you for your participation.</p>';
+    
+    const successMessage = `
+      <div class="form-container">
+        <h1>Debriefing Information</h1>
+        <div class="pis-content">${debriefHtml}</div>
+        <p><strong>Your data has been successfully uploaded.</strong></p>
+        <p>You may now close this window.</p>
+      </div>`;
     show(successMessage);
+
   } else {
+    const failureMessage = `
+      <h2>Network error – data downloaded locally.</h2>
+      <p>There was an issue uploading your data. A file containing your data has been downloaded to your computer instead.</p>
+      <p>Please email this CSV file to the researcher.</p>`;
+    const genericFailureMessage = '<h2>Sorry – data could not be saved.</h2><p>Please screenshot this page and contact the researcher.</p>';
+    
     if (CONFIG.fallbackDownload) {
       show(failureMessage);
     } else {
@@ -441,18 +435,17 @@ function showDebrief(success = true) {
 async function loadCSV(){
   const txt = await fetch(CONFIG.csvFile).then(r=>r.text());
   const lines = txt.trim().split(/\r?\n/);
-  lines.shift();                        // remove header
+  lines.shift();
 
   lines.forEach(line=>{
     const comma = line.indexOf(',');
-    if(comma===-1) return;              // skip bad rows
+    if(comma===-1) return;
     const file     = line.slice(0,comma).trim();
     const sentence = line.slice(comma+1).trim();
     const m = /(Ch|Cl)(E|H)(\d{2})\.(wav|mp3|ogg)$/i.exec(file);
     if(!m) return;
     state.stimuliPool.push({
-      file,
-      sentence,
+      file, sentence,
       topic : m[1].toLowerCase()==='ch'?'Chess':'Cloud',
       diff  : m[2].toUpperCase(),
       idx   : parseInt(m[3],10)
@@ -476,18 +469,11 @@ async function intro(){
     const pid  = document.getElementById('pid').value.trim();
     const skey = document.getElementById('skey').value.trim().toUpperCase();
 
-    /* basic validation */
-    if (!pid){
-      alert('Please enter a Prolific ID');
-      return;
-    }
-    if (!(skey in GROUP_KEYS)){
-      alert('Session Key not recognised.\nPlease check the code and try again.');
-      return;
-    }
+    if (!pid){ alert('Please enter a Prolific ID'); return; }
+    if (!(skey in GROUP_KEYS)){ alert('Session Key not recognised.\nPlease check the code and try again.'); return; }
 
     state.participant = pid;
-    state.difficulty  = GROUP_KEYS[skey];   // 'E' or 'H'
+    state.difficulty  = GROUP_KEYS[skey];
     state.blockOrder  = shuffle(['Chess','Cloud']);
 
     blockLoop(0);
@@ -520,15 +506,9 @@ async function runBlock(topic){
   show(`<h2>Study – ${topic}</h2><p>You will hear 15 sentences. Listen carefully.</p><p>Press SPACE to begin.</p>`);
   await waitSpace();
   for(let i=0;i<study.length;i++){
-    show(`
-      <div class="study-listen-screen">
-        <p class="fixation">+</p>
-        <p class="instruction">Listen carefully.</p>
-      </div>`);
+    show(`<div class="study-listen-screen"><p class="fixation">+</p><p class="instruction">Listen carefully.</p></div>`);
     await playAudio(study[i].file);
-    log({participant:state.participant,difficulty:state.difficulty,
-         topic,phase:'study',serialPos:i+1,
-         file:study[i].file,sentence:study[i].sentence});
+    log({participant:state.participant,difficulty:state.difficulty, topic,phase:'study',serialPos:i+1, file:study[i].file,sentence:study[i].sentence});
     await sleep(100);
   }
 
@@ -538,35 +518,21 @@ async function runBlock(topic){
   /* ---- Test ---- */
   show(`
     <h2>Memory Test – ${topic}</h2>
-    <p>You will now see 30 sentences, one at a time.</p>
-    <p>Some sentences are OLD – you listened to them during the first part of the study. Others are NEW and were not played.</p>
-    <p>Your task is to decide for each sentence:</p>
-    <p>F = OLD</p>
-    <p>J = NEW</p>
-    <p>Guidelines:</p>
-    <ul style="list-style-type: disc; text-align: left; display: inline-block;">
-      <li>Respond as quickly and accurately as possible.</li>
-      <li>This test lets us measure how well people recall recently heard information after a short distraction task.</li>
-    </ul>
+    <p>You will now see 30 sentences, one at a time. Some are OLD and some are NEW.</p>
+    <p>Your task is to decide for each sentence: F = OLD or J = NEW</p>
+    <p>Please respond as quickly and accurately as possible.</p>
     <p>Press the SPACEBAR when you are ready to begin.</p>
   `);
   await waitSpace();
   for(const stim of testList){
     show(`<div class="fixation-cross-container">+</div>`);
     await sleep(CONFIG.fixationCrossDuration);
-    show(`
-      <div class="test-sentence-container">
-        <p style="font-size:1.5rem;">${stim.sentence}</p>
-        <p style="font-size:.8em;margin-top:1em;">(F = OLD &nbsp;|&nbsp; J = NEW)</p>
-      </div>`);
+    show(`<div class="test-sentence-container"><p style="font-size:1.5rem;">${stim.sentence}</p><p style="font-size:.8em;margin-top:1em;">(F = OLD &nbsp;|&nbsp; J = NEW)</p></div>`);
     startClock = performance.now();
     const key  = await waitKeys(['f','j']);
     const rt   = performance.now() - startClock;
     const isOld= study.includes(stim);
-    log({participant:state.participant,difficulty:state.difficulty,
-         topic,phase:'test',file:stim.file,sentence:stim.sentence,
-         isOld,serialPosTest:isOld?study.indexOf(stim)+1:-1,
-         respOld:key==='f',correct:(key==='f')===isOld,rt});
+    log({participant:state.participant,difficulty:state.difficulty, topic,phase:'test',file:stim.file,sentence:stim.sentence, isOld,serialPosTest:isOld?study.indexOf(stim)+1:-1, respOld:key==='f',correct:(key==='f')===isOld,rt});
   }
 }
 
@@ -575,7 +541,7 @@ function playAudio(fname){
   return new Promise(res=>{
     const a=new Audio(`${CONFIG.audioDir}/${fname}`);
     a.addEventListener('ended',()=>res());
-    a.play();
+a.play();
   });
 }
 const waitSpace=()=>waitKeys([' ']);
@@ -595,9 +561,8 @@ function waitKeys(valid){
 
 /* ----- distractor count‑the‑high‑beeps ----- */
 async function distractorPhase(topic){
-  const numHigh = Math.floor(Math.random()*8)+1;  // 1‑8
-  const seq     = shuffle(Array(numHigh).fill('high')
-                   .concat(Array(8-numHigh).fill('low')));
+  const numHigh = Math.floor(Math.random()*8)+1;
+  const seq     = shuffle(Array(numHigh).fill('high').concat(Array(8-numHigh).fill('low')));
 
   show(`<h2>Counting task</h2><p>Count ONLY the high‑pitched beeps in 8 tones.</p><p>Press SPACE to start.</p>`);
   await waitSpace();
@@ -611,31 +576,28 @@ async function distractorPhase(topic){
   show(`<p>How many high beeps? (Press 1‑8)</p>`);
   const key = await waitKeys(['1','2','3','4','5','6','7','8']);
   const rt  = performance.now()-firstToneTime;
-  log({participant:state.participant,difficulty:state.difficulty,
-       topic,phase:'distractor',trueHigh:numHigh,resp:+key,
-       corrDistractor:(+key)===numHigh,rt});
+  log({participant:state.participant,difficulty:state.difficulty, topic,phase:'distractor',trueHigh:numHigh,resp:+key, corrDistractor:(+key)===numHigh,rt});
 }
 
 /* -------------- FINISH & UPLOAD -------------- */
-function finishExperiment(){
+async function finishExperiment(){
   mergeData();
   const csv = toCSV(state.data);
   const fn  = `${CONFIG.experimentName}_${state.participant}_${Date.now()}.csv`;
 
   show('<h2>Uploading your data…</h2><p>Please wait.</p>');
-  uploadCSV(fn,csv)
-    .then(r=>{
-      if(!r.ok) throw new Error(`HTTP ${r.status}`);
-      return r.json();
-    })
-    .then(()=>showDebrief(true))
-    .catch(err=>{
-      console.error('Upload failed:',err);
-      if(CONFIG.fallbackDownload){
-        downloadFile(csv,fn, 'text/csv');
-      }
-      showDebrief(false);
-    });
+  try {
+    const r = await uploadCSV(fn, csv);
+    if (!r.ok) throw new Error(`HTTP ${r.status}`);
+    await r.json();
+    await showDebrief(true);
+  } catch (err) {
+    console.error('Upload failed:', err);
+    if (CONFIG.fallbackDownload) {
+      downloadFile(csv, fn, 'text/csv');
+    }
+    await showDebrief(false);
+  }
 }
 
 /* -------------- LAUNCH -------------- */
