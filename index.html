@@ -527,7 +527,8 @@ async function intro(){
 
 /* ----- block loop ----- */
 async function blockLoop(i){
-  if(i>=state.block.length) {
+  // ★ BUG FIX: Was 'state.block.length', corrected to 'state.blockOrder.length'
+  if(i>=state.blockOrder.length) { 
     await showDemographics();
     await showPostTask();
     await finishExperiment();
