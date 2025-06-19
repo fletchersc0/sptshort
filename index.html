@@ -312,7 +312,8 @@ function exitToProlific() {
 function askYesNoQuestion(questionText) {
   show(`
     <div class="form-container">
-      <p style="text-align: left; font-size: 1.2rem; margin-bottom: 2rem;">${questionText}</p>
+      <h1 style="margin-bottom: 2rem;">Question</h1>
+      <p style="text-align: center; font-size: 1.2rem; margin-bottom: 2rem;">${questionText}</p>
       <div class="button-bar">
         <button id="yes-btn">Yes</button>
         <button id="no-btn">No</button>
@@ -436,50 +437,40 @@ async function runDemographicsSequence() {
   await askEducation();
 }
 
-async function showPostTask() {
+async function askFamiliarityQuestion(topic) {
   show(`
     <div class="form-container">
       <h1>Post-Task Questions</h1>
-      <p style="text-align:center;">Please answer a few final questions about your experience.</p>
-
-      <label>How familiar are you with the topic of Chess? (1=Not familiar, 5=Very familiar)</label>
+      <label for="familiarity" style="margin-bottom: 1rem; text-align:center;">How familiar are you with the topic of ${topic}? <br>(1=Not familiar, 5=Very familiar)</label>
       <div style="text-align:center;">
-        <input type="radio" name="fam_chess" value="1"> 1 <input type="radio" name="fam_chess" value="2"> 2 <input type="radio" name="fam_chess" value="3"> 3 <input type="radio" name="fam_chess" value="4"> 4 <input type="radio" name="fam_chess" value="5"> 5
+        <input type="number" id="familiarity" name="familiarity" min="1" max="5" required style="width: 100px; text-align: center; font-size: 1.2rem;">
       </div>
-
-      <label>How familiar are you with the topic of Cloud Computing? (1=Not familiar, 5=Very familiar)</label>
-      <div style="text-align:center;">
-        <input type="radio" name="fam_cloud" value="1"> 1 <input type="radio" name="fam_cloud" value="2"> 2 <input type="radio" name="fam_cloud" value="3"> 3 <input type="radio" name="fam_cloud" value="4"> 4 <input type="radio" name="fam_cloud" value="5"> 5
-      </div>
-      
-      <label>Did you respond randomly at any point during the memory test?</label>
-      <div style="text-align:center;">
-        <input type="radio" name="random" value="yes" id="random-yes"><label for="random-yes">Yes</label>
-        <input type="radio" name="random" value="no" id="random-no"><label for="random-no">No</label>
-      </div>
-
       <div class="button-bar">
-        <button id="continue-post-task">Finish Experiment</button>
+        <button id="continue-btn">Continue</button>
       </div>
     </div>
   `);
-
   return new Promise(resolve => {
-    document.getElementById('continue-post-task').onclick = () => {
-      const famChess = document.querySelector('input[name="fam_chess"]:checked');
-      const famCloud = document.querySelector('input[name="fam_cloud"]:checked');
-      const random = document.querySelector('input[name="random"]:checked');
-
-      if (famChess && famCloud && random) {
-        state.questionnaire.familiarityChess = famChess.value;
-        state.questionnaire.familiarityCloud = famCloud.value;
-        state.questionnaire.randomResponses = random.value;
-        resolve();
+    document.getElementById('continue-btn').onclick = () => {
+      const value = document.getElementById('familiarity').value;
+      if (value && value >= 1 && value <= 5) {
+        resolve(value);
       } else {
-        alert('Please answer all questions.');
+        alert('Please enter a number between 1 and 5.');
       }
     };
   });
+}
+
+async function askRandomResponse() {
+  const answeredYes = await askYesNoQuestion('Did you respond randomly at any point during the memory test?');
+  state.questionnaire.randomResponses = answeredYes ? 'yes' : 'no';
+}
+
+async function runPostTaskSequence() {
+  state.questionnaire.familiarityChess = await askFamiliarityQuestion('Chess');
+  state.questionnaire.familiarityCloud = await askFamiliarityQuestion('Cloud Computing');
+  await askRandomResponse();
 }
 
 function mergeData() {
@@ -607,7 +598,7 @@ async function intro(){
 async function blockLoop(i){
   if(i>=state.blockOrder.length) { 
     await runDemographicsSequence();
-    await showPostTask();
+    await runPostTaskSequence();
     await finishExperiment();
     return;
   }
