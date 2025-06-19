@@ -264,7 +264,6 @@ async function showPIS() {
   }
   const pisText = await response.text();
 
-  // ★ Use DOMParser to robustly extract only the body content from the PIS HTML file
   const parser = new DOMParser();
   const pisDoc = parser.parseFromString(pisText, 'text/html');
   const pisBodyContent = pisDoc.body.innerHTML;
@@ -273,11 +272,10 @@ async function showPIS() {
 
   show(`
     <div class="form-container">
-      <h1>Participant Information Sheet</h1>
       <div class="pis-content"></div>
       <div class="button-bar">
         <button id="download-pis">Download PIS as PDF</button>
-        <button id="agree-pis">I have read the information and agree to participate</button>
+        <button id="next-pis">Next</button>
       </div>
     </div>
   `);
@@ -294,44 +292,56 @@ async function showPIS() {
   };
 
   return new Promise(resolve => {
-    document.getElementById('agree-pis').onclick = () => {
+    document.getElementById('next-pis').onclick = () => {
       document.body.classList.remove('pis-mode');
       resolve();
     };
   });
 }
 
-async function showScreening() {
+function exitToProlific() {
+  const message = `
+    <div class="form-container" style="text-align:center;">
+      <h2>Thank you for your interest.</h2>
+      <p>As you do not meet the eligibility criteria or do not wish to consent, you cannot proceed with the study.</p>
+      <p>You will now be returned to Prolific.</p>
+    </div>
+  `;
+  show(message);
+  setTimeout(() => {
+    window.location.href = 'https://app.prolific.com';
+  }, 5000); // 5 second delay
+}
+
+function askYesNoQuestion(questionText) {
   show(`
-    <div class="form-container">
-      <h1>Pre-Screening</h1>
-      <p>Before we begin, please answer the following questions.</p>
-      
-      <label>1. Are you using headphones and in a quiet environment?</label>
-      <input type="radio" name="env" value="yes" id="env-yes"><label for="env-yes">Yes</label>
-      <input type="radio" name="env" value="no" id="env-no"><label for="env-no">No</label>
-
-      <label>2. Can you commit to giving this task your undivided attention?</label>
-      <input type="radio" name="attn" value="yes" id="attn-yes"><label for="attn-yes">Yes</label>
-      <input type="radio" name="attn" value="no" id="attn-no"><label for="attn-no">No</label>
-
-      <div class="button-bar">
-        <button id="continue-screening">Continue</button>
-      </div>
+    <div class="form-container" style="text-align: center;">
+      <p style="text-align: left; font-size: 1.2rem; margin-bottom: 2rem;">${questionText}</p>
+      <button id="yes-btn">Yes</button>
+      <button id="no-btn">No</button>
     </div>
   `);
-
   return new Promise(resolve => {
-    document.getElementById('continue-screening').onclick = () => {
-      const env_ok = document.getElementById('env-yes').checked;
-      const attn_ok = document.getElementById('attn-yes').checked;
-      if (env_ok && attn_ok) {
-        resolve();
-      } else {
-        show('<h2>Participation Requirements Not Met</h2><p>This experiment requires headphones, a quiet environment, and your full attention. Thank you for your interest.</p>');
-      }
-    };
+    document.getElementById('yes-btn').onclick = () => resolve(true);
+    document.getElementById('no-btn').onclick = () => resolve(false);
   });
+}
+
+async function runScreeningSequence() {
+  const questions = [
+    'Are you over 18 years of age?',
+    'During the study, will you have access to speakers or headphones and a quiet place to listen?',
+    'Do you consent to participate in the study?'
+  ];
+
+  for (const question of questions) {
+    const answeredYes = await askYesNoQuestion(question);
+    if (!answeredYes) {
+      exitToProlific();
+      // Return a promise that never resolves to halt execution
+      return new Promise(() => {}); 
+    }
+  }
 }
 
 /* -------------- POST-TASK QUESTIONNAIRES -------------- */
@@ -648,7 +658,7 @@ async function finishExperiment(){
   try{
     await loadCSV();
     await showPIS();
-    await showScreening();
+    await runScreeningSequence();
     intro();
   }catch(e){
     console.error(e);
