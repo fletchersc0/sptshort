@@ -340,15 +340,34 @@ async function runScreeningSequence() {
 
 /* -------------- POST-TASK QUESTIONNAIRES -------------- */
 
-async function showDemographics() {
+async function askAge() {
   show(`
     <div class="form-container">
       <h1>Demographic Information</h1>
-      <p>Please provide the following information.</p>
-
       <label for="age">Age:</label>
       <input type="number" id="age" name="age" min="18" max="100" required>
+      <div class="button-bar">
+        <button id="continue-btn">Continue</button>
+      </div>
+    </div>
+  `);
+  return new Promise(resolve => {
+    document.getElementById('continue-btn').onclick = () => {
+      const age = document.getElementById('age').value;
+      if (age) {
+        state.questionnaire.age = age;
+        resolve();
+      } else {
+        alert('Please enter your age.');
+      }
+    };
+  });
+}
 
+async function askGender() {
+  show(`
+    <div class="form-container">
+      <h1>Demographic Information</h1>
       <label for="gender">Gender:</label>
       <select id="gender" name="gender" required>
         <option value="" disabled selected>Select an option</option>
@@ -358,39 +377,59 @@ async function showDemographics() {
         <option value="other">Other</option>
         <option value="prefer_not_to_say">Prefer not to say</option>
       </select>
-
-      <label for="education">Highest level of education completed:</label>
-      <select id="education" name="education" required>
-        <option value="" disabled selected>Select an option</option>
-        <option value="high_school">High School</option>
-        <option value="bachelors">Bachelor's Degree</option>
-        <option value="masters">Master's Degree</option>
-        <option value="phd">Doctorate (PhD)</option>
-        <option value="other">Other</option>
-      </select>
-      
       <div class="button-bar">
-        <button id="continue-demographics">Continue</button>
+        <button id="continue-btn">Continue</button>
       </div>
     </div>
   `);
-
   return new Promise(resolve => {
-    document.getElementById('continue-demographics').onclick = () => {
-      const age = document.getElementById('age').value;
+    document.getElementById('continue-btn').onclick = () => {
       const gender = document.getElementById('gender').value;
-      const education = document.getElementById('education').value;
-
-      if (age && gender && education) {
-        state.questionnaire.age = age;
+      if (gender) {
         state.questionnaire.gender = gender;
-        state.questionnaire.education = education;
         resolve();
       } else {
-        alert('Please complete all fields.');
+        alert('Please select an option.');
       }
     };
   });
+}
+
+async function askEducation() {
+  show(`
+    <div class="form-container">
+      <h1>Demographic Information</h1>
+      <label for="education">Highest level of education completed:</label>
+      <select id="education" name="education" required>
+        <option value="" disabled selected>Select an option</option>
+        <option value="no_highschool">Did not complete highschool</option>
+        <option value="highschool_equivalent">Year 12 or equivalent</option>
+        <option value="diploma_equivalent">Diploma or equivalent</option>
+        <option value="bachelors_equivalent">Bachelor's degree or equivalent</option>
+        <option value="postgrad_equivalent">Post-graduate degree or equivalent (e.g., Master's or PhD)</option>
+      </select>
+      <div class="button-bar">
+        <button id="continue-btn">Continue</button>
+      </div>
+    </div>
+  `);
+  return new Promise(resolve => {
+    document.getElementById('continue-btn').onclick = () => {
+      const education = document.getElementById('education').value;
+      if (education) {
+        state.questionnaire.education = education;
+        resolve();
+      } else {
+        alert('Please select an option.');
+      }
+    };
+  });
+}
+
+async function runDemographicsSequence() {
+  await askAge();
+  await askGender();
+  await askEducation();
 }
 
 async function showPostTask() {
@@ -527,9 +566,8 @@ async function intro(){
 
 /* ----- block loop ----- */
 async function blockLoop(i){
-  // ★ BUG FIX: Was 'state.block.length', corrected to 'state.blockOrder.length'
   if(i>=state.blockOrder.length) { 
-    await showDemographics();
+    await runDemographicsSequence();
     await showPostTask();
     await finishExperiment();
     return;
