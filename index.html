@@ -159,12 +159,6 @@ const CONFIG = {
   ]
 };
 
-/* -------- Session‑Key → condition map (edit codes here) -------- */
-const GROUP_KEYS = {
-  'Q3B-8Y2': 'E',   // Easy
-  'M9V-4X7': 'H'    // Hard
-};
-
 /* -------------- GLOBAL STATE -------------- */
 const state = {
   participant : '',
@@ -512,21 +506,19 @@ async function loadCSV(){
 async function intro(){
   show(`
     <h1>${CONFIG.experimentName}</h1>
-    <p>Please enter your Prolific ID and Session Key.</p>
+    <p>Please enter your Prolific ID to begin.</p>
     <input id="pid"  placeholder="Prolific ID" /><br>
-    <input id="skey" placeholder="Session Key"     /><br>
     <button id="start">Start</button>
   `);
 
   document.getElementById('start').onclick = () => {
     const pid  = document.getElementById('pid').value.trim();
-    const skey = document.getElementById('skey').value.trim().toUpperCase();
 
     if (!pid){ alert('Please enter a Prolific ID'); return; }
-    if (!(skey in GROUP_KEYS)){ alert('Session Key not recognised.\nPlease check the code and try again.'); return; }
 
     state.participant = pid;
-    state.difficulty  = GROUP_KEYS[skey];
+    // ★ Randomly assign participant to 'E' (Easy) or 'H' (Hard) condition
+    state.difficulty  = Math.random() < 0.5 ? 'E' : 'H';
     state.blockOrder  = shuffle(['Chess','Cloud']);
 
     blockLoop(0);
@@ -535,7 +527,7 @@ async function intro(){
 
 /* ----- block loop ----- */
 async function blockLoop(i){
-  if(i>=state.blockOrder.length) {
+  if(i>=state.block.length) {
     await showDemographics();
     await showPostTask();
     await finishExperiment();
