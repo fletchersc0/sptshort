@@ -149,6 +149,8 @@ const CONFIG = {
   dataPipeID           : 'qWHxwr6D720q',        // ← your real DataPipe ID
   fallbackDownload     : true,                  // save CSV locally on failure
   fixationCrossDuration: 500,                   // ms
+  toneDuration         : 200,                   // ms
+  toneInterval         : 500,                   // ms
   prolificURL          : 'https://app.prolific.co/submissions/complete?cc=C13G9PW2',
 
   /* ★ Fixed column order */
@@ -686,8 +688,8 @@ async function distractorPhase(topic){
   let firstToneTime=0;
   for(let i=0;i<seq.length;i++){
     if(i===0) firstToneTime=performance.now();
-    await beep(seq[i]==='high'?1000:400,0.2);
-    await sleep(50);
+    await beep(seq[i]==='high'?1000:400, CONFIG.toneDuration / 1000);
+    await sleep(CONFIG.toneInterval);
   }
   show(`<p style="text-align:center;">How many high beeps? (Press 1‑8)</p>`);
   const key = await waitKeys(['1','2','3','4','5','6','7','8']);
