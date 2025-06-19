@@ -60,7 +60,8 @@
       max-width: 600px;
       width: 100%;
     }
-    .form-container p { text-align:center; }
+    .form-container p { text-align:left; } /* ★ Changed to left align */
+    .form-container h1, .form-container h2 { text-align:center; } /* ★ Center headings */
     .form-container label {
       display: block;
       margin-top: 1rem;
@@ -148,6 +149,7 @@ const CONFIG = {
   dataPipeID           : 'qWHxwr6D720q',        // ← your real DataPipe ID
   fallbackDownload     : true,                  // save CSV locally on failure
   fixationCrossDuration: 500,                   // ms
+  prolificURL          : 'https://app.prolific.co/submissions/complete?cc=C13G9PW2',
 
   /* ★ Fixed column order */
   masterHeader : [
@@ -297,8 +299,8 @@ function exitToProlific() {
   const message = `
     <div class="form-container" style="text-align:center;">
       <h2>Thank you for your interest.</h2>
-      <p>As you do not meet the eligibility criteria or do not wish to consent, you cannot proceed with the study.</p>
-      <p>You will now be returned to Prolific.</p>
+      <p style="text-align:center;">As you do not meet the eligibility criteria or do not wish to consent, you cannot proceed with the study.</p>
+      <p style="text-align:center;">You will now be returned to Prolific.</p>
     </div>
   `;
   show(message);
@@ -309,10 +311,12 @@ function exitToProlific() {
 
 function askYesNoQuestion(questionText) {
   show(`
-    <div class="form-container" style="text-align: center;">
+    <div class="form-container">
       <p style="text-align: left; font-size: 1.2rem; margin-bottom: 2rem;">${questionText}</p>
-      <button id="yes-btn">Yes</button>
-      <button id="no-btn">No</button>
+      <div class="button-bar">
+        <button id="yes-btn">Yes</button>
+        <button id="no-btn">No</button>
+      </div>
     </div>
   `);
   return new Promise(resolve => {
@@ -436,21 +440,23 @@ async function showPostTask() {
   show(`
     <div class="form-container">
       <h1>Post-Task Questions</h1>
-      <p>Please answer a few final questions about your experience.</p>
+      <p style="text-align:center;">Please answer a few final questions about your experience.</p>
 
       <label>How familiar are you with the topic of Chess? (1=Not familiar, 5=Very familiar)</label>
-      <div>
+      <div style="text-align:center;">
         <input type="radio" name="fam_chess" value="1"> 1 <input type="radio" name="fam_chess" value="2"> 2 <input type="radio" name="fam_chess" value="3"> 3 <input type="radio" name="fam_chess" value="4"> 4 <input type="radio" name="fam_chess" value="5"> 5
       </div>
 
       <label>How familiar are you with the topic of Cloud Computing? (1=Not familiar, 5=Very familiar)</label>
-      <div>
+      <div style="text-align:center;">
         <input type="radio" name="fam_cloud" value="1"> 1 <input type="radio" name="fam_cloud" value="2"> 2 <input type="radio" name="fam_cloud" value="3"> 3 <input type="radio" name="fam_cloud" value="4"> 4 <input type="radio" name="fam_cloud" value="5"> 5
       </div>
       
       <label>Did you respond randomly at any point during the memory test?</label>
-      <input type="radio" name="random" value="yes" id="random-yes"><label for="random-yes">Yes</label>
-      <input type="radio" name="random" value="no" id="random-no"><label for="random-no">No</label>
+      <div style="text-align:center;">
+        <input type="radio" name="random" value="yes" id="random-yes"><label for="random-yes">Yes</label>
+        <input type="radio" name="random" value="no" id="random-no"><label for="random-no">No</label>
+      </div>
 
       <div class="button-bar">
         <button id="continue-post-task">Finish Experiment</button>
@@ -482,26 +488,31 @@ function mergeData() {
   });
 }
 
-// --- MODIFIED: showDebrief is now async and fetches external file ---
 async function showDebrief(success = true) {
   if (success) {
+    document.body.classList.add('pis-mode');
     const response = await fetch(CONFIG.debriefFile);
     const debriefHtml = response.ok ? await response.text() : '<p>Thank you for your participation.</p>';
     
     const successMessage = `
-      <div class="form-container">
-        <h1>Debriefing Information</h1>
-        <div class="pis-content">${debriefHtml}</div>
+      <div class="form-container" style="text-align: right;">
+        <h1 style="text-align: right;">Debriefing Information</h1>
+        <div class="pis-content" style="text-align: right;">${debriefHtml}</div>
         <p><strong>Your data has been successfully uploaded.</strong></p>
-        <p>You may now close this window.</p>
+        <p>Please click the arrow below to complete the study and return to Prolific.</p>
+        <div class="button-bar" style="text-align: right;">
+          <a href="${CONFIG.prolificURL}" style="font-size: 2.5rem; text-decoration: none; color: var(--fg);">&rarr;</a>
+        </div>
       </div>`;
     show(successMessage);
 
   } else {
     const failureMessage = `
-      <h2>Network error – data downloaded locally.</h2>
-      <p>There was an issue uploading your data. A file containing your data has been downloaded to your computer instead.</p>
-      <p>Please email this CSV file to the researcher.</p>`;
+      <div class="form-container">
+        <h2>Network error – data downloaded locally.</h2>
+        <p style="text-align:center;">There was an issue uploading your data. A file containing your data has been downloaded to your computer instead.</p>
+        <p style="text-align:center;">Please email this CSV file to the researcher.</p>
+      </div>`;
     const genericFailureMessage = '<h2>Sorry – data could not be saved.</h2><p>Please screenshot this page and contact the researcher.</p>';
     
     if (CONFIG.fallbackDownload) {
@@ -541,25 +552,53 @@ async function loadCSV(){
     throw new Error('No stimuli loaded – check CSV.');
 }
 
-/* -------------- MAIN INTRO SCREEN -------------- */
+/* -------------- INSTRUCTIONS & INTRO SCREEN -------------- */
+async function showInstructions() {
+  show(`
+    <div class="form-container">
+        <h2>Welcome to this session.</h2>
+        <p>Please turn off your phone and close other applications that may be distracting.</p>
+        <p>Then, please read the following instructions carefully. They will give you all the information you need to participate in this session.</p>
+        <p><strong>Please note:</strong> Once an entry has been made, it is no longer possible to re-enter.</p>
+        
+        <h2>What will happen?</h2>
+        <p>You will hear a series of sentences through your headphones or speakers. Make sure the volume is at a level you can clearly hear.</p>
+        <p>Simply listen carefully to each sentence. <strong>No response is required.</strong></p>
+        <p>You will then hear 8 quick beeps. The tones will vary in pitch: some will be high-pitched, and others will be low-pitched.</p>
+        <p>Count how many are <strong>high-pitched</strong> and type in that number.</p>
+        
+        <div class="button-bar">
+            <button id="continue-instructions">Continue</button>
+        </div>
+    </div>
+  `);
+  return new Promise(resolve => {
+    document.getElementById('continue-instructions').onclick = resolve;
+  });
+}
+
 async function intro(){
   show(`
-    <h1>${CONFIG.experimentName}</h1>
-    <p>Please enter your Prolific ID to begin.</p>
-    <input id="pid"  placeholder="Prolific ID" /><br>
-    <button id="start">Start</button>
+    <div class="form-container">
+        <h1 style="text-align:center;">${CONFIG.experimentName}</h1>
+        <p style="text-align:center;">Please enter your Prolific ID to begin.</p>
+        <div style="text-align:center;">
+            <input id="pid" placeholder="Prolific ID" /><br>
+            <button id="start">Start</button>
+        </div>
+    </div>
   `);
 
-  document.getElementById('start').onclick = () => {
+  document.getElementById('start').onclick = async () => {
     const pid  = document.getElementById('pid').value.trim();
 
     if (!pid){ alert('Please enter a Prolific ID'); return; }
 
     state.participant = pid;
-    // ★ Randomly assign participant to 'E' (Easy) or 'H' (Hard) condition
     state.difficulty  = Math.random() < 0.5 ? 'E' : 'H';
     state.blockOrder  = shuffle(['Chess','Cloud']);
 
+    await showInstructions();
     blockLoop(0);
   };
 }
@@ -587,7 +626,7 @@ async function runBlock(topic){
   const testList  = shuffle([...study,...newFoils]);
 
   /* ---- Study ---- */
-  show(`<h2>Study – ${topic}</h2><p>You will hear 15 sentences. Listen carefully.</p><p>Press SPACE to begin.</p>`);
+  show(`<div style="text-align:center;"><h2>Study – ${topic}</h2><p>You will hear 15 sentences. Listen carefully.</p><p>Press SPACE to begin.</p></div>`);
   await waitSpace();
   for(let i=0;i<study.length;i++){
     show(`<div class="study-listen-screen"><p class="fixation">+</p><p class="instruction">Listen carefully.</p></div>`);
@@ -601,11 +640,13 @@ async function runBlock(topic){
 
   /* ---- Test ---- */
   show(`
-    <h2>Memory Test – ${topic}</h2>
-    <p>You will now see 30 sentences, one at a time. Some are OLD and some are NEW.</p>
-    <p>Your task is to decide for each sentence: F = OLD or J = NEW</p>
-    <p>Please respond as quickly and accurately as possible.</p>
-    <p>Press the SPACEBAR when you are ready to begin.</p>
+    <div style="text-align:center;">
+        <h2>Memory Test – ${topic}</h2>
+        <p>You will now see 30 sentences, one at a time. Some are OLD and some are NEW.</p>
+        <p>Your task is to decide for each sentence: F = OLD or J = NEW</p>
+        <p>Please respond as quickly and accurately as possible.</p>
+        <p>Press the SPACEBAR when you are ready to begin.</p>
+    </div>
   `);
   await waitSpace();
   for(const stim of testList){
@@ -648,7 +689,7 @@ async function distractorPhase(topic){
   const numHigh = Math.floor(Math.random()*8)+1;
   const seq     = shuffle(Array(numHigh).fill('high').concat(Array(8-numHigh).fill('low')));
 
-  show(`<h2>Counting task</h2><p>Count ONLY the high‑pitched beeps in 8 tones.</p><p>Press SPACE to start.</p>`);
+  show(`<div style="text-align:center;"><h2>Counting task</h2><p>Count ONLY the high‑pitched beeps in 8 tones.</p><p>Press SPACE to start.</p></div>`);
   await waitSpace();
 
   let firstToneTime=0;
@@ -657,7 +698,7 @@ async function distractorPhase(topic){
     await beep(seq[i]==='high'?1000:400,0.2);
     await sleep(50);
   }
-  show(`<p>How many high beeps? (Press 1‑8)</p>`);
+  show(`<p style="text-align:center;">How many high beeps? (Press 1‑8)</p>`);
   const key = await waitKeys(['1','2','3','4','5','6','7','8']);
   const rt  = performance.now()-firstToneTime;
   log({participant:state.participant,difficulty:state.difficulty, topic,phase:'distractor',trueHigh:numHigh,resp:+key, corrDistractor:(+key)===numHigh,rt});
