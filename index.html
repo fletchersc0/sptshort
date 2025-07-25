@@ -122,6 +122,11 @@
       margin-top: 0;
       display: inline;
     }
+    .other-text-input {
+      margin-top: 5px;
+      margin-left: 25px;
+      width: calc(100% - 25px);
+    }
 
     /* ---------- Experiment‑specific helpers ---------- */
     .fixation-cross-container{
@@ -173,7 +178,7 @@ const CONFIG = {
     'file','sentence','serialPos',
     'isOld','serialPosTest','respOld','correct',
     'trueHigh','resp','corrDistractor','rt',
-    'age','gender','education','familiarityChess','familiarityCloud','randomResponses'
+    'age','gender','education','englishProficiency','familiarityChess','familiarityCloud','randomResponses'
   ]
 };
 
@@ -500,17 +505,93 @@ async function askEducation() {
   });
 }
 
+async function askEnglishProficiency() {
+  show(`
+    <div class="form-container">
+      <h1>Demographic Information</h1>
+      <p>What best describes your linguistic background?</p>
+      
+      <form id="english-proficiency-form">
+        <div class="radio-option">
+          <input type="radio" id="lang-1" name="english-prof" value="english_first_only">
+          <label for="lang-1">English is my first language and my only fluent language.</label>
+        </div>
+        
+        <div class="radio-option">
+          <input type="radio" id="lang-2" name="english-prof" value="english_first_plus">
+          <label for="lang-2">English is my first language, and I am also fluent in another language.</label>
+        </div>
+        
+        <div class="radio-option">
+          <input type="radio" id="lang-3" name="english-prof" value="other_first_fluent_english">
+          <label for="lang-3">A language other than English is my first language, but I am fluent in English.</label>
+        </div>
+        
+        <div class="radio-option">
+          <input type="radio" id="lang-4" name="english-prof" value="other_first_intermediate_english">
+          <label for="lang-4">A language other than English is my first language, and I have only intermediate English proficiency.</label>
+        </div>
+        
+        <div class="radio-option">
+          <input type="radio" id="lang-5" name="english-prof" value="other">
+          <label for="lang-5">Other / prefer to specify:</label>
+        </div>
+        
+        <input type="text" id="other-specify" class="other-text-input" style="display: none;" placeholder="Please specify">
+        
+        <div class="button-bar">
+          <button type="submit">Continue</button>
+        </div>
+      </form>
+    </div>
+  `);
+  
+  // Show/hide the "other" text field based on selection
+  document.getElementById('lang-5').addEventListener('change', function() {
+    document.getElementById('other-specify').style.display = this.checked ? 'block' : 'none';
+  });
+  
+  return new Promise(resolve => {
+    document.getElementById('english-proficiency-form').onsubmit = (e) => {
+      e.preventDefault();
+      
+      const selectedOption = document.querySelector('input[name="english-prof"]:checked');
+      
+      if (!selectedOption) {
+        alert('Please select an option');
+        return;
+      }
+      
+      let response = selectedOption.value;
+      
+      // If "Other" is selected, get the text input
+      if (response === 'other') {
+        const otherText = document.getElementById('other-specify').value.trim();
+        if (!otherText) {
+          alert('Please specify your answer in the text field');
+          return;
+        }
+        response = `other: ${otherText}`;
+      }
+      
+      state.questionnaire.englishProficiency = response;
+      resolve();
+    };
+  });
+}
+
 async function runDemographicsSequence() {
   await askAge();
   await askGender();
   await askEducation();
+  await askEnglishProficiency(); // Added the new English proficiency question
 }
 
 async function askFamiliarityQuestion(topic) {
   show(`
     <div class="form-container">
       <h1>Post-Task Questions</h1>
-      <label for="familiarity" style="margin-bottom: 1rem; text-align:center;">How familiar are you with the topic of ${topic}? <br>(1=Not familiar, 5=Very familiar)</label>
+      <label for="familiarity" style="margin-bottom: 1rem; text-align:center;">Before today, how familiar were you with the information you heard in the listening task about ${topic}? <br>(1=Not familiar, 5=Very familiar)</label>
       <div style="text-align:center;">
         <input type="number" id="familiarity" name="familiarity" min="1" max="5" required style="width: 100px; text-align: center; font-size: 1.2rem;">
       </div>
