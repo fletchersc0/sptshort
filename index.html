@@ -108,6 +108,20 @@
     .pis-content a { color: #0645AD; text-decoration: none; }
     .pis-content a:hover { text-decoration: underline; }
 
+    /* Styles for radio options */
+    .radio-option {
+      display: flex;
+      align-items: flex-start;
+      margin: 10px 0;
+    }
+    .radio-option input {
+      margin-top: 5px;
+      margin-right: 10px;
+    }
+    .radio-option label {
+      margin-top: 0;
+      display: inline;
+    }
 
     /* ---------- Experiment‑specific helpers ---------- */
     .fixation-cross-container{
@@ -328,21 +342,73 @@ function askYesNoQuestion(questionText) {
   });
 }
 
+function askMultipleChoiceQuestion(questionText, options) {
+  const optionsHTML = options.map((option, index) => `
+    <div class="radio-option">
+      <input type="radio" id="option-${index}" name="multiple-choice" value="${index}">
+      <label for="option-${index}">${option}</label>
+    </div>
+  `).join('');
+
+  show(`
+    <div class="form-container">
+      <h1 style="margin-bottom: 2rem;">Question</h1>
+      <p style="font-size: 1.2rem; margin-bottom: 1.5rem;">${questionText}</p>
+      <form id="multiple-choice-form">
+        ${optionsHTML}
+        <div class="button-bar">
+          <button type="submit" id="submit-btn">Continue</button>
+        </div>
+      </form>
+    </div>
+  `);
+
+  return new Promise(resolve => {
+    document.getElementById('multiple-choice-form').onsubmit = (e) => {
+      e.preventDefault();
+      const selectedOption = document.querySelector('input[name="multiple-choice"]:checked');
+      if (selectedOption) {
+        resolve(parseInt(selectedOption.value));
+      } else {
+        alert('Please select an option');
+      }
+    };
+  });
+}
+
 async function runScreeningSequence() {
-  const questions = [
-    'Are you comfortable reading detailed instructions and answering survey questions in English?', // New question added here
+  // Yes/No questions
+  const yesNoQuestions = [
+    'Are you comfortable reading detailed instructions and answering survey questions in English?',
     'Are you over 18 years of age?',
     'During the study, will you have access to speakers or headphones and a quiet place to listen?',
     'Do you consent to participate in the study?'
   ];
 
-  for (const question of questions) {
+  for (const question of yesNoQuestions) {
     const answeredYes = await askYesNoQuestion(question);
     if (!answeredYes) {
       exitToProlific();
       // Return a promise that never resolves to halt execution
       return new Promise(() => {}); 
     }
+  }
+  
+  // Hearing question - multiple choice
+  const hearingQuestion = "Which statement best describes your hearing?";
+  const hearingOptions = [
+    "I have normal hearing and no diagnosed hearing impairment.",
+    "I use a hearing aid/implant, and my hearing is corrected to normal.",
+    "I have a diagnosed hearing impairment that is not fully corrected.",
+    "Prefer not to answer."
+  ];
+  
+  const hearingResponse = await askMultipleChoiceQuestion(hearingQuestion, hearingOptions);
+  
+  // Only options 0 and 1 are acceptable (first two options)
+  if (hearingResponse > 1) {
+    exitToProlific();
+    return new Promise(() => {});
   }
 }
 
