@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <title>Participant Information Sheet – Auditory recall for voice-only information retrieval</title>
+  <title>Participant Information Sheet – Online Listening & Decision Task</title>
   <style>
     body { font-family: Arial, sans-serif; line-height: 1.6; margin: 2rem; max-width: 900px; }
     h1 { font-size: 1.8em; margin-bottom: 0.4em; }
@@ -14,12 +14,12 @@
 </head>
 <body>
 <h1>Participant Information Sheet</h1>
-<p><strong>Title:</strong> Auditory recall for voice-only information retrieval<br>
+<p><strong>Title:</strong> Online Listening & Decision Task<br>
 <strong>Principal Investigator / Senior Supervisor:</strong> Dr&nbsp;Damiano&nbsp;Spina<br>
 <strong>Principal Research Students:</strong> Fletcher&nbsp;Scott, Kaixin&nbsp;Ji, Sachin&nbsp;Pathiyan&nbsp;Cherumanal</p>
 
 <h2>1. Introduction</h2>
-<p>You are invited to take part in the research project <em>Auditory recall for voice-only information retrieval</em>. This sheet explains what the project involves so you can decide whether to participate.</p>
+<p>You are invited to take part in the research project <em>Online Listening & Decision Task</em>. This sheet explains what the project involves so you can decide whether to participate.</p>
 <p>Please read it carefully and discuss it with others if you wish. Participation is voluntary: you may decline or withdraw at any time. Continuing to the task after reading this sheet indicates your consent.</p>
 <p>By completing the task you confirm that you:</p>
 <ul>
@@ -38,7 +38,7 @@
 <p>You will be paid AUD&nbsp;$7. There are no costs to you.</p>
 
 <h2>4. Other relevant information</h2>
-<p>The study aims to enrol approximately 50 participants.</p>
+<p>The study aims to enrol approximately 60 participants.</p>
 
 <h2>5. Do I have to take part?</h2>
 <p>No. Participation is voluntary. You may withdraw before submitting your responses; once submitted, data are anonymous and cannot be withdrawn. Your decision will not affect your relationship with the researchers or RMIT University.</p>
