@@ -62,6 +62,7 @@
     button,
     input[type=text],
     input[type=number],
+    input:not([type]),  /* Target inputs with no type specified */
     select {
       font-size:1rem;
       padding:.5rem 1rem;
@@ -752,7 +753,7 @@ async function intro(){
         <h1 style="text-align:center;">${CONFIG.experimentName}</h1>
         <p style="text-align:center;">Please enter your Prolific ID to begin.</p>
         <div style="text-align:center;">
-            <input id="pid" placeholder="Prolific ID" /><br>
+            <input type="text" id="pid" placeholder="Prolific ID" /><br>
             <button id="start">Start</button>
         </div>
     </div>
