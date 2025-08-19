@@ -191,6 +191,7 @@ const CONFIG = {
   experimentName       : 'Online Listening & Decision Task',
   audioDir             : 'audio',               // audio/*.wav
   csvFile              : 'stimulus_master.csv', // stimuli list
+  practiceCSVFile      : 'practice_master.csv', // practice stimuli list
   pisFile              : 'PIS.txt',             // PIS file
   debriefFile          : 'debrief.txt',         // <-- NEW: Debrief file
   responseKeys         : { old:'f', new:'j' },
@@ -217,6 +218,7 @@ const state = {
   difficulty  : '',
   blockOrder  : [],
   stimuliPool : [],
+  practicePool: [],
   data        : [],
   questionnaire: {}
 };
@@ -722,6 +724,132 @@ async function loadCSV(){
     throw new Error('No stimuli loaded – check CSV.');
 }
 
+/* -------------- LOAD PRACTICE STIMULI CSV -------------- */
+async function loadPracticeCSV(){
+  try {
+    const txt = await fetch(CONFIG.practiceCSVFile).then(r=>r.text());
+    const lines = txt.trim().split(/\r?\n/);
+    if (lines.length < 1) throw new Error('Practice CSV file is empty');
+    
+    // Skip header if present (file,sentence)
+    const startLine = lines[0].toLowerCase().includes('file,sentence') ? 1 : 0;
+    
+    for (let i = startLine; i < lines.length; i++) {
+      const line = lines[i];
+      const comma = line.indexOf(',');
+      if (comma === -1) continue;
+      
+      const file = line.slice(0, comma).trim();
+      const sentence = line.slice(comma + 1).trim();
+      
+      state.practicePool.push({
+        file, 
+        sentence
+      });
+    }
+    
+    if (state.practicePool.length < 4) {
+      throw new Error('Need at least 4 practice stimuli in practice_master.csv');
+    }
+    
+    console.log(`Loaded ${state.practicePool.length} practice stimuli`);
+    
+  } catch (error) {
+    console.error('Error loading practice stimuli:', error);
+    throw error;
+  }
+}
+
+/* -------------- PRACTICE TRIALS -------------- */
+async function runPracticeTrials() {
+  // Show practice introduction
+  show(`
+    <div class="form-container">
+      <h1>Practice Trials</h1>
+      <p>Before starting the main experiment, you will complete a short practice session.</p>
+      <p>This will help you understand the task structure:</p>
+      <ol>
+        <li>First, you will hear 2 sentences. Listen carefully.</li>
+        <li>Next, you will count high-pitched beeps (just like in the main experiment).</li>
+        <li>Finally, you will see 4 sentences and indicate which ones you heard before (OLD) and which are new (NEW).</li>
+      </ol>
+      <p>Press the button when you are ready to begin the practice.</p>
+      <div class="button-bar">
+        <button id="start-practice">Start Practice</button>
+      </div>
+    </div>
+  `);
+  
+  await new Promise(resolve => {
+    document.getElementById('start-practice').onclick = resolve;
+  });
+  
+  // Select 2 random practice stimuli from the pool of 4
+  const studyStimuli = randomSample(state.practicePool, 2);
+  // The other 2 will be new foils
+  const newFoils = state.practicePool.filter(stim => !studyStimuli.includes(stim));
+  // Combine and shuffle for test phase
+  const testStimuli = shuffle([...studyStimuli, ...newFoils]);
+  
+  // Practice Study Phase
+  show(`<div style="text-align:center;"><h2>Practice: Study Phase</h2><p>You will hear 2 sentences. Listen carefully.</p><p>Press SPACE to begin.</p></div>`);
+  await waitSpace();
+  
+  for (let i = 0; i < studyStimuli.length; i++) {
+    show(`<div class="study-listen-screen"><p class="fixation">+</p><p class="instruction">Listen carefully.</p></div>`);
+    await playAudio(studyStimuli[i].file);
+    await sleep(100);
+  }
+  
+  // Practice Distractor Phase
+  await distractorPhase('Practice');
+  
+  // Practice Test Phase
+  show(`
+    <div style="text-align:center;">
+      <h2>Practice: Memory Test</h2>
+      <p>You will now see 4 sentences, one at a time. Some you have just listened to (OLD) and some you have not heard before (NEW).</p>
+      <p>Your task is to decide for each sentence: F = OLD or J = NEW</p>
+      <p>Press the SPACEBAR when you are ready to begin.</p>
+    </div>
+  `);
+  await waitSpace();
+  
+  for (const stim of testStimuli) {
+    show(`<div class="fixation-cross-container">+</div>`);
+    await sleep(CONFIG.fixationCrossDuration);
+    show(`<div class="test-sentence-container"><p style="font-size:1.5rem;">${stim.sentence}</p><p style="font-size:.8em;margin-top:1em;">(F = OLD &nbsp;|&nbsp; J = NEW)</p></div>`);
+    startClock = performance.now();
+    const key = await waitKeys(['f', 'j']);
+    const rt = performance.now() - startClock;
+    const isOld = studyStimuli.includes(stim);
+    // We don't log practice data
+  }
+  
+  // Show practice completion message
+  show(`
+    <div class="form-container">
+      <h1>Practice Complete</h1>
+      <p>Great job! You have completed the practice session.</p>
+      <p>Now you will begin the actual experiment, which follows the same structure:</p>
+      <ol>
+        <li>Listen to sentences (more than in the practice)</li>
+        <li>Count high-pitched beeps</li>
+        <li>Identify which sentences are OLD vs. NEW</li>
+      </ol>
+      <p>Remember, press F for sentences you heard before (OLD) and J for sentences you have not heard (NEW).</p>
+      <p>Press the button when you are ready to begin the main experiment.</p>
+      <div class="button-bar">
+        <button id="start-main">Begin Main Experiment</button>
+      </div>
+    </div>
+  `);
+  
+  return new Promise(resolve => {
+    document.getElementById('start-main').onclick = resolve;
+  });
+}
+
 /* -------------- INSTRUCTIONS & INTRO SCREEN -------------- */
 async function showInstructions() {
   show(`
@@ -769,6 +897,7 @@ async function intro(){
     state.blockOrder  = shuffle(['Chess','Cloud']);
 
     await showInstructions();
+    await runPracticeTrials(); // Run practice trials before main experiment
     blockLoop(0);
   };
 }
@@ -899,6 +1028,7 @@ async function finishExperiment(){
 (async()=>{
   try{
     await loadCSV();
+    await loadPracticeCSV(); // Load practice stimuli
     await showPIS();
     await runScreeningSequence();
     intro();
