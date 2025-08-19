@@ -727,39 +727,29 @@ async function loadCSV(){
 /* -------------- LOAD PRACTICE STIMULI CSV -------------- */
 async function loadPracticeCSV(){
   try {
-    console.log('Loading practice CSV from:', CONFIG.practiceCSVFile);
     const response = await fetch(CONFIG.practiceCSVFile);
     
     if (!response.ok) {
-      throw new Error(`Failed to fetch practice CSV: ${response.status} ${response.statusText}`);
+      throw new Error(`Failed to fetch practice CSV`);
     }
     
     const txt = await response.text();
-    console.log('Practice CSV loaded, length:', txt.length);
-    console.log('Raw practice CSV content:', txt);
     
     const lines = txt.trim().split(/\r?\n/);
     if (lines.length < 1) throw new Error('Practice CSV file is empty');
     
-    console.log('Practice CSV lines:', lines.length);
-    console.log('Lines from practice CSV:', lines);
-    
     // Skip header if present (file,sentence)
     const startLine = lines[0].toLowerCase().includes('file,sentence') ? 1 : 0;
-    console.log('Starting at line:', startLine);
     
     for (let i = startLine; i < lines.length; i++) {
       const line = lines[i];
       const comma = line.indexOf(',');
       if (comma === -1) {
-        console.warn('Skipping invalid line in practice CSV:', line);
         continue;
       }
       
       const file = line.slice(0, comma).trim();
       const sentence = line.slice(comma + 1).trim();
-      
-      console.log(`Practice item ${i+1}: file="${file}", sentence="${sentence}"`);
       
       state.practicePool.push({
         file, 
@@ -768,88 +758,38 @@ async function loadPracticeCSV(){
     }
     
     if (state.practicePool.length < 4) {
-      throw new Error(`Need at least 4 practice stimuli in practice_master.csv, found ${state.practicePool.length}`);
+      throw new Error(`Need at least 4 practice stimuli in practice_master.csv`);
     }
-    
-    console.log(`Successfully loaded ${state.practicePool.length} practice stimuli:`, state.practicePool);
     
   } catch (error) {
     console.error('Error loading practice stimuli:', error);
-    alert('Error loading practice stimuli: ' + error.message);
     // Continue without practice if there's an error
     state.practicePool = []; 
   }
 }
 
-/* -------------- ENHANCED AUDIO PLAYBACK WITH LOGGING -------------- */
+/* -------------- AUDIO PLAYBACK (WITHOUT TIMEOUT) -------------- */
 function playAudio(fname){
-  console.log(`Attempting to play audio: ${fname}`);
-  // Check if file exists first by making a HEAD request
-  fetch(`${CONFIG.audioDir}/${fname}`, { method: 'HEAD' })
-    .then(response => {
-      if (!response.ok) {
-        console.error(`Audio file not found: ${CONFIG.audioDir}/${fname}`);
-        alert(`Audio file not found: ${CONFIG.audioDir}/${fname}. Please check that the file exists.`);
-      } else {
-        console.log(`Audio file exists: ${CONFIG.audioDir}/${fname}`);
-      }
-    })
-    .catch(error => {
-      console.error(`Error checking audio file: ${error}`);
-      alert(`Error checking audio file: ${error.message}`);
-    });
-    
-  return new Promise((resolve, reject) => {
+  return new Promise((resolve) => {
     try {
       const audioPath = `${CONFIG.audioDir}/${fname}`;
-      console.log(`Creating audio element with src: ${audioPath}`);
       const a = new Audio(audioPath);
       
-      // Log all events for debugging
-      ['loadstart', 'durationchange', 'loadedmetadata', 'loadeddata', 
-       'progress', 'canplay', 'canplaythrough'].forEach(event => {
-        a.addEventListener(event, () => console.log(`Audio event: ${event} for ${fname}`));
+      // Simple ended event listener
+      a.addEventListener('ended', () => {
+        resolve();
       });
       
-      // Add error handling with detailed error information
-      a.addEventListener('error', (e) => {
-        const errorDetails = a.error ? 
-          `Code: ${a.error.code}, Message: ${a.error.message}` : 
-          'Unknown error';
-        console.error(`Audio playback error for ${fname}: ${errorDetails}`);
-        alert(`Audio error: Could not play ${fname}. ${errorDetails}`);
+      // Handle errors without alerts
+      a.addEventListener('error', () => {
         resolve(); // Resolve anyway to prevent getting stuck
       });
       
-      a.addEventListener('ended', () => {
-        console.log(`Audio finished playing: ${fname}`);
-        resolve();
-      });
-      
-      // Set a timeout in case audio never plays
-      const timeout = setTimeout(() => {
-        console.warn(`Audio playback timeout for: ${fname}`);
-        alert(`Timeout playing audio: ${fname}. Continuing with experiment.`);
-        resolve(); // Resolve after timeout to prevent getting stuck
-      }, 5000); // 5 second timeout
-      
-      // Clear timeout if audio ends normally
-      a.addEventListener('ended', () => {
-        clearTimeout(timeout);
-        resolve();
-      });
-      
       // Try to play and handle any errors
-      console.log(`Calling play() on audio: ${fname}`);
-      a.play().catch(err => {
-        console.error(`Error playing audio ${fname}:`, err);
-        clearTimeout(timeout);
-        alert(`Could not play audio file: ${fname}. Error: ${err.message}`);
+      a.play().catch(() => {
         resolve(); // Resolve to prevent getting stuck
       });
     } catch(e) {
-      console.error(`Exception in audio playback for ${fname}:`, e);
-      alert(`Exception playing audio: ${fname}. Error: ${e.message}`);
       resolve(); // Resolve anyway to prevent getting stuck
     }
   });
@@ -857,12 +797,8 @@ function playAudio(fname){
 
 /* -------------- PRACTICE TRIALS -------------- */
 async function runPracticeTrials() {
-  console.log("Starting practice trials");
-  
   // Skip practice if no practice stimuli were loaded
   if (state.practicePool.length < 4) {
-    console.warn('Insufficient practice stimuli, skipping practice trials');
-    alert('Not enough practice stimuli were loaded. Skipping practice trials.');
     return;
   }
   
@@ -889,19 +825,12 @@ async function runPracticeTrials() {
   });
   
   try {
-    console.log("Practice pool before sampling:", state.practicePool);
-    
     // Select 2 random practice stimuli from the pool of 4
     const studyStimuli = randomSample(state.practicePool, 2);
-    console.log("Selected study stimuli:", studyStimuli);
-    
     // The other 2 will be new foils
     const newFoils = state.practicePool.filter(stim => !studyStimuli.includes(stim));
-    console.log("Selected new foils:", newFoils);
-    
     // Combine and shuffle for test phase
     const testStimuli = shuffle([...studyStimuli, ...newFoils]);
-    console.log("Combined test stimuli:", testStimuli);
     
     // Practice Study Phase
     show(`<div style="text-align:center;"><h2>Practice: Study Phase</h2><p>You will hear 2 sentences. Listen carefully.</p><p>Press SPACE to begin.</p></div>`);
@@ -909,26 +838,14 @@ async function runPracticeTrials() {
     
     for (let i = 0; i < studyStimuli.length; i++) {
       show(`<div class="study-listen-screen"><p class="fixation">+</p><p class="instruction">Listen carefully.</p></div>`);
-      console.log(`Playing practice audio ${i+1}/${studyStimuli.length}: ${studyStimuli[i].file}`);
-      
-      try {
-        await playAudio(studyStimuli[i].file);
-        console.log(`Completed playing practice audio ${i+1}`);
-      } catch (audioError) {
-        console.error(`Error playing practice audio ${i+1}:`, audioError);
-        alert(`There was an error playing the audio. Continuing with practice.`);
-      }
-      
+      await playAudio(studyStimuli[i].file);
       await sleep(100);
     }
     
     // Practice Distractor Phase
-    console.log("Starting practice distractor phase");
     await distractorPhase('Practice');
-    console.log("Completed practice distractor phase");
     
     // Practice Test Phase
-    console.log("Starting practice test phase");
     show(`
       <div style="text-align:center;">
         <h2>Practice: Memory Test</h2>
@@ -941,7 +858,6 @@ async function runPracticeTrials() {
     
     for (let i = 0; i < testStimuli.length; i++) {
       const stim = testStimuli[i];
-      console.log(`Test item ${i+1}/${testStimuli.length}: "${stim.sentence}"`);
       
       show(`<div class="fixation-cross-container">+</div>`);
       await sleep(CONFIG.fixationCrossDuration);
@@ -949,25 +865,18 @@ async function runPracticeTrials() {
       show(`<div class="test-sentence-container"><p style="font-size:1.5rem;">${stim.sentence}</p><p style="font-size:.8em;margin-top:1em;">(F = OLD &nbsp;|&nbsp; J = NEW)</p></div>`);
       startClock = performance.now();
       
-      console.log(`Waiting for key press (F or J) for test item ${i+1}`);
       const key = await waitKeys(['f', 'j']);
-      console.log(`Received key press: ${key}`);
       
       const rt = performance.now() - startClock;
       const isOld = studyStimuli.includes(stim);
-      console.log(`Item was ${isOld ? 'OLD' : 'NEW'}, response was ${key === 'f' ? 'OLD' : 'NEW'}, RT: ${rt}ms`);
       // We don't log practice data
     }
     
-    console.log("Completed practice test phase");
-    
   } catch (error) {
-    console.error('Error during practice trials:', error);
-    alert(`There was an error during the practice: ${error.message}. We will continue to the main experiment.`);
+    // Continue silently if there's an error
   }
   
   // Show practice completion message
-  console.log("Showing practice completion message");
   show(`
     <div class="form-container">
       <h1>Practice Complete</h1>
@@ -987,10 +896,7 @@ async function runPracticeTrials() {
   `);
   
   return new Promise(resolve => {
-    document.getElementById('start-main').onclick = () => {
-      console.log("User clicked to begin main experiment");
-      resolve();
-    };
+    document.getElementById('start-main').onclick = resolve;
   });
 }
 
@@ -1036,28 +942,20 @@ async function intro(){
 
     if (!pid){ alert('Please enter a Prolific ID'); return; }
 
-    console.log(`Starting experiment with Prolific ID: ${pid}`);
     state.participant = pid;
     state.difficulty  = Math.random() < 0.5 ? 'E' : 'H';
     state.blockOrder  = shuffle(['Chess','Cloud']);
-    console.log(`Assigned difficulty: ${state.difficulty}, Block order: ${state.blockOrder}`);
 
     await showInstructions();
     
     if (state.practicePool.length >= 4) {
       try {
-        console.log("Starting practice trials");
         await runPracticeTrials(); // Run practice trials before main experiment
-        console.log("Practice trials completed");
       } catch (e) {
         console.error('Practice trial error:', e);
-        alert(`There was an error during practice: ${e.message}. Continuing to main experiment.`);
       }
-    } else {
-      console.warn('Skipping practice trials - insufficient stimuli');
     }
     
-    console.log("Starting main experiment blocks");
     blockLoop(0);
   };
 }
@@ -1065,49 +963,39 @@ async function intro(){
 /* ----- block loop ----- */
 async function blockLoop(i){
   if(i>=state.blockOrder.length) { 
-    console.log("All blocks completed, starting demographics");
     await runDemographicsSequence();
     await runPostTaskSequence();
     await finishExperiment();
     return;
   }
-  console.log(`Starting block ${i+1}/${state.blockOrder.length}: ${state.blockOrder[i]}`);
   await runBlock(state.blockOrder[i]);
   blockLoop(i+1);
 }
 
 /* -------------- RUN BLOCK (Study → Distractor → Test) -------------- */
 async function runBlock(topic){
-  console.log(`Running block for topic: ${topic}`);
   const pool = state.stimuliPool
                 .filter(s=>s.topic===topic && s.diff===state.difficulty);
-  console.log(`Filtered stimuli pool for ${topic}/${state.difficulty}: ${pool.length} items`);
-  
-  if(pool.length<30) throw new Error(`Insufficient stimuli for ${topic}/${state.difficulty}: need 30, have ${pool.length}`);
+  if(pool.length<30) throw new Error('Insufficient stimuli');
 
   const study     = randomSample(pool,15);
   const newFoils  = randomSample(pool.filter(s=>!study.includes(s)),15);
   const testList  = shuffle([...study,...newFoils]);
-  
-  console.log(`Selected ${study.length} study items and ${newFoils.length} new foils`);
 
   /* ---- Study ---- */
   show(`<div style="text-align:center;"><h2>Study – ${topic}</h2><p>You will hear 15 sentences. Listen carefully.</p><p>Press SPACE to begin.</p></div>`);
   await waitSpace();
   for(let i=0;i<study.length;i++){
     show(`<div class="study-listen-screen"><p class="fixation">+</p><p class="instruction">Listen carefully.</p></div>`);
-    console.log(`Playing main study audio ${i+1}/${study.length}: ${study[i].file}`);
     await playAudio(study[i].file);
     log({participant:state.participant,difficulty:state.difficulty, topic,phase:'study',serialPos:i+1, file:study[i].file,sentence:study[i].sentence});
     await sleep(100);
   }
 
   /* ---- Distractor ---- */
-  console.log(`Starting distractor phase for ${topic}`);
   await distractorPhase(topic);
 
   /* ---- Test ---- */
-  console.log(`Starting test phase for ${topic}`);
   show(`
     <div style="text-align:center;">
         <h2>Memory Test – ${topic}</h2>
@@ -1118,10 +1006,7 @@ async function runBlock(topic){
     </div>
   `);
   await waitSpace();
-  for(let i=0; i<testList.length; i++){
-    const stim = testList[i];
-    console.log(`Test item ${i+1}/${testList.length}: "${stim.sentence}"`);
-    
+  for(const stim of testList){
     show(`<div class="fixation-cross-container">+</div>`);
     await sleep(CONFIG.fixationCrossDuration);
     show(`<div class="test-sentence-container"><p style="font-size:1.5rem;">${stim.sentence}</p><p style="font-size:.8em;margin-top:1em;">(F = OLD &nbsp;|&nbsp; J = NEW)</p></div>`);
@@ -1129,21 +1014,17 @@ async function runBlock(topic){
     const key  = await waitKeys(['f','j']);
     const rt   = performance.now() - startClock;
     const isOld= study.includes(stim);
-    console.log(`Response for test item ${i+1}: ${key} (${key==='f'?'OLD':'NEW'}), correct: ${(key==='f')===isOld}, RT: ${rt}ms`);
     log({participant:state.participant,difficulty:state.difficulty, topic,phase:'test',file:stim.file,sentence:stim.sentence, isOld,serialPosTest:isOld?study.indexOf(stim)+1:-1, respOld:key==='f',correct:(key==='f')===isOld,rt});
   }
-  console.log(`Completed test phase for ${topic}`);
 }
 
 /* -------------- HELPERS -------------- */
 const waitSpace=()=>waitKeys([' ']);
 function waitKeys(valid){
-  console.log(`Waiting for keys: ${valid.join(', ')}`);
   valid = valid.map(k=>k.toLowerCase());
   return new Promise(res=>{
     function onKey(e){
       const k=e.key.toLowerCase();
-      console.log(`Key pressed: ${k}`);
       if(valid.includes(k)){
         document.removeEventListener('keydown',onKey);
         res(k);
@@ -1155,10 +1036,8 @@ function waitKeys(valid){
 
 /* ----- distractor count‑the‑high‑beeps ----- */
 async function distractorPhase(topic){
-  console.log(`Starting distractor phase for topic: ${topic}`);
   const numHigh = Math.floor(Math.random()*8)+1;
   const seq     = shuffle(Array(numHigh).fill('high').concat(Array(8-numHigh).fill('low')));
-  console.log(`Distractor beep sequence: ${seq.join(', ')} (${numHigh} high beeps)`);
 
   show(`<div style="text-align:center;"><h2>Counting task</h2><p>Count ONLY the high‑pitched beeps in 8 tones.</p><p>Press SPACE to start.</p></div>`);
   await waitSpace();
@@ -1166,37 +1045,30 @@ async function distractorPhase(topic){
   let firstToneTime=0;
   for(let i=0;i<seq.length;i++){
     if(i===0) firstToneTime=performance.now();
-    console.log(`Playing beep ${i+1}/${seq.length}: ${seq[i]} pitch`);
     await beep(seq[i]==='high'?1000:400, CONFIG.toneDuration / 1000);
     await sleep(CONFIG.toneInterval);
   }
   show(`<p style="text-align:center;">How many high beeps? (Press 1‑8)</p>`);
   const key = await waitKeys(['1','2','3','4','5','6','7','8']);
   const rt  = performance.now()-firstToneTime;
-  console.log(`Distractor response: ${key}, correct answer: ${numHigh}, RT: ${rt}ms`);
   log({participant:state.participant,difficulty:state.difficulty, topic,phase:'distractor',trueHigh:numHigh,resp:+key, corrDistractor:(+key)===numHigh,rt});
 }
 
 /* -------------- FINISH & UPLOAD -------------- */
 async function finishExperiment(){
-  console.log("Finishing experiment and preparing to upload data");
   mergeData();
   const csv = toCSV(state.data);
   const fn  = `${CONFIG.experimentName}_${state.participant}_${Date.now()}.csv`;
-  console.log(`Generated CSV with ${state.data.length} rows`);
 
   show('<h2>Uploading your data…</h2><p>Please wait.</p>');
   try {
-    console.log("Attempting to upload data");
     const r = await uploadCSV(fn, csv);
     if (!r.ok) throw new Error(`HTTP ${r.status}`);
-    const response = await r.json();
-    console.log("Upload successful:", response);
+    await r.json();
     await showDebrief(true);
   } catch (err) {
     console.error('Upload failed:', err);
     if (CONFIG.fallbackDownload) {
-      console.log("Initiating fallback download");
       downloadFile(csv, fn, 'text/csv');
     }
     await showDebrief(false);
@@ -1206,31 +1078,20 @@ async function finishExperiment(){
 /* -------------- LAUNCH -------------- */
 (async()=>{
   try{
-    console.log("Starting experiment");
-    console.log("Loading main stimuli CSV");
     await loadCSV();
-    console.log(`Loaded ${state.stimuliPool.length} main stimuli`);
-    
     try {
-      console.log("Loading practice stimuli CSV");
       await loadPracticeCSV(); // Load practice stimuli
-      console.log(`Loaded ${state.practicePool.length} practice stimuli`);
     } catch (e) {
       console.error('Error loading practice stimuli:', e);
-      alert(`Error loading practice stimuli: ${e.message}`);
       // Continue without practice
       state.practicePool = [];
     }
-    
-    console.log("Loading PIS");
     await showPIS();
-    console.log("Running screening sequence");
     await runScreeningSequence();
-    console.log("Starting intro sequence");
     intro();
   }catch(e){
-    console.error('Startup error:', e);
-    show(`<p>Error: ${e.message}</p><p>Please contact the researcher with this error message.</p>`);
+    console.error(e);
+    show(`<p>Error: ${e.message}</p>`);
   }
 })();
 </script>
