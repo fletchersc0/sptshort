@@ -1048,23 +1048,37 @@ async function distractorPhase(topic){
   const numHigh = Math.floor(Math.random()*8)+1;
   const seq     = shuffle(Array(numHigh).fill('high').concat(Array(8-numHigh).fill('low')));
 
-  show(`<div style="text-align:center;"><h2>Counting task</h2><p>Count ONLY the high‑pitched beeps in 8 tones.</p><p>Press SPACE to start.</p></div>`);
+  show(`<div style="text-align:center;"><h2>Counting task</h2><p>Count ONLY the high-pitched beeps in 8 tones.</p><p>Press SPACE to start.</p></div>`);
   await waitSpace();
 
-  // Play countdown audio before starting the beep sequence
+  // Countdown phase (same as study)
   show(`<div class="study-listen-screen"><p class="fixation">+</p><p class="instruction">Get ready...</p></div>`);
   await playAudio("countdown.mp3");
 
-  let firstToneTime=0;
-  for(let i=0;i<seq.length;i++){
-    if(i===0) firstToneTime=performance.now();
-    await beep(seq[i]==='high'?1000:400, CONFIG.toneDuration / 1000);
+  // Update instruction like the study loop does
+  show(`<div class="study-listen-screen"><p class="fixation">+</p><p class="instruction">Listen carefully.</p></div>`);
+
+  let firstToneTime = 0;
+  for (let i = 0; i < seq.length; i++) {
+    if (i === 0) firstToneTime = performance.now();
+    await beep(seq[i] === 'high' ? 1000 : 400, CONFIG.toneDuration / 1000);
     await sleep(CONFIG.toneInterval);
   }
-  show(`<p style="text-align:center;">How many high beeps? (Press 1‑8)</p>`);
+
+  show(`<p style="text-align:center;">How many high beeps? (Press 1-8)</p>`);
   const key = await waitKeys(['1','2','3','4','5','6','7','8']);
-  const rt  = performance.now()-firstToneTime;
-  log({participant:state.participant,difficulty:state.difficulty, topic,phase:'distractor',trueHigh:numHigh,resp:+key, corrDistractor:(+key)===numHigh,rt});
+  const rt  = performance.now() - firstToneTime;
+
+  log({
+    participant: state.participant,
+    difficulty : state.difficulty,
+    topic,
+    phase      : 'distractor',
+    trueHigh   : numHigh,
+    resp       : +key,
+    corrDistractor: (+key) === numHigh,
+    rt
+  });
 }
 
 /* -------------- FINISH & UPLOAD -------------- */
