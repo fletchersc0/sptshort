@@ -1051,6 +1051,10 @@ async function distractorPhase(topic){
   show(`<div style="text-align:center;"><h2>Counting task</h2><p>Count ONLY the high‑pitched beeps in 8 tones.</p><p>Press SPACE to start.</p></div>`);
   await waitSpace();
 
+  // Play countdown audio before starting the beep sequence
+  show(`<div class="study-listen-screen"><p class="fixation">+</p><p class="instruction">Get ready...</p></div>`);
+  await playAudio("countdown.mp3");
+
   let firstToneTime=0;
   for(let i=0;i<seq.length;i++){
     if(i===0) firstToneTime=performance.now();
