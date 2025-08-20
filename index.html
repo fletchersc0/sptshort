@@ -836,6 +836,10 @@ async function runPracticeTrials() {
     show(`<div style="text-align:center;"><h2>Practice: Study Phase</h2><p>You will hear 2 sentences. Listen carefully.</p><p>Press SPACE to begin.</p></div>`);
     await waitSpace();
     
+    // Play countdown audio before the practice sentences
+    show(`<div class="study-listen-screen"><p class="fixation">+</p><p class="instruction">Get ready...</p></div>`);
+    await playAudio("countdown.mp3");
+    
     for (let i = 0; i < studyStimuli.length; i++) {
       show(`<div class="study-listen-screen"><p class="fixation">+</p><p class="instruction">Listen carefully.</p></div>`);
       await playAudio(studyStimuli[i].file);
@@ -985,6 +989,11 @@ async function runBlock(topic){
   /* ---- Study ---- */
   show(`<div style="text-align:center;"><h2>Study – ${topic}</h2><p>You will hear 15 sentences. Listen carefully.</p><p>Press SPACE to begin.</p></div>`);
   await waitSpace();
+  
+  // Play countdown audio before the main experiment sentences
+  show(`<div class="study-listen-screen"><p class="fixation">+</p><p class="instruction">Get ready...</p></div>`);
+  await playAudio("countdown.mp3");
+  
   for(let i=0;i<study.length;i++){
     show(`<div class="study-listen-screen"><p class="fixation">+</p><p class="instruction">Listen carefully.</p></div>`);
     await playAudio(study[i].file);
