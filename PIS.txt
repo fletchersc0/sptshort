@@ -33,7 +33,7 @@
 <p>This study investigates how well people remember spoken information. It is conducted by Dr&nbsp;Damiano&nbsp;Spina and PhD candidates Fletcher&nbsp;Scott, Kaixin&nbsp;Ji, and Sachin&nbsp;Pathiyan&nbsp;Cherumanal. Findings will contribute to their PhD dissertations and are funded by the ARC Centre of Excellence for Automated Decision‑Making and Society.</p>
 
 <h2>3. What does participation involve?</h2>
-<p><strong>Screening (≈1&nbsp;min):</strong> A brief screening will confirm that you: (1) are 18 years or older, (2) can comfortably read instructions and answer survey questions in English, and (3) have access to working speakers or headphones and a quiet, distraction-free place to listen during the study.<br>
+<p><strong>Screening (≈1&nbsp;min):</strong> A brief screening will confirm that you: (1) are 18 years or older, (2) can comfortably read instructions and answer survey questions in English, (3) have access to working speakers or headphones and a quiet, distraction-free place to listen, and (4) have normal or corrected-to-normal hearing.<br>
 <strong>Main task (≈14&nbsp;min):</strong> Eligible participants memorise several neutral phrases delivered by audio, then answer recall questions and non‑identifying demographic items.</p>
 <p>You will be paid AUD&nbsp;$7. There are no costs to you.</p>
 
@@ -90,4 +90,5 @@ Manager, Research Governance &amp; Ethics, GPO&nbsp;Box&nbsp;2476, Melbourne&nbs
 
 </body>
 </html>
+
 
