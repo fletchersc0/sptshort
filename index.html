@@ -412,16 +412,15 @@ function askMultipleChoiceQuestion(questionText, options) {
   });
 }
 
-async function runScreeningSequence() {
-  // Yes/No questions
-  const yesNoQuestions = [
+async function runInitialScreening() {
+  // Initial screening questions
+  const initialQuestions = [
     'Are you comfortable reading detailed instructions and answering survey questions in English?',
     'Are you over 18 years of age?',
-    'During the study, will you have access to speakers or headphones and a quiet place to listen?',
-    'Do you consent to participate in the study?'
+    'During the study, will you have access to speakers or headphones and a quiet place to listen?'
   ];
 
-  for (const question of yesNoQuestions) {
+  for (const question of initialQuestions) {
     const answeredYes = await askYesNoQuestion(question);
     if (!answeredYes) {
       exitToProlific();
@@ -429,8 +428,9 @@ async function runScreeningSequence() {
       return new Promise(() => {}); 
     }
   }
-  
-  // Hearing question - multiple choice
+}
+
+async function askHearingQuestion() {
   const hearingQuestion = "Which statement best describes your hearing?";
   const hearingOptions = [
     "I have normal hearing and no diagnosed hearing impairment.",
@@ -445,6 +445,16 @@ async function runScreeningSequence() {
   if (hearingResponse > 1) {
     exitToProlific();
     return new Promise(() => {});
+  }
+}
+
+async function getConsent() {
+  const consentQuestion = "Do you consent to participate in the study?";
+  const answeredYes = await askYesNoQuestion(consentQuestion);
+  if (!answeredYes) {
+    exitToProlific();
+    // Return a promise that never resolves to halt execution
+    return new Promise(() => {}); 
   }
 }
 
@@ -1112,8 +1122,10 @@ async function finishExperiment(){
       // Continue without practice
       state.practicePool = [];
     }
+    await runInitialScreening();
+    await askHearingQuestion();
     await showPIS();
-    await runScreeningSequence();
+    await getConsent();
     intro();
   }catch(e){
     console.error(e);
