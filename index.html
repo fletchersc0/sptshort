@@ -172,6 +172,34 @@
     }
     .study-listen-screen .fixation{ font-size:3rem;margin:0; }
     .study-listen-screen .instruction{ font-size:1.5rem;margin-top:.5em; }
+    
+    /* --- Feedback Panel Styles for Practice Trials --- */
+    .feedback-panel {
+      background: #222;
+      border: 2px solid #555;
+      border-radius: 8px;
+      padding: 1.5rem;
+      margin: 1rem auto;
+      max-width: 600px;
+      text-align: center;
+    }
+    .feedback-panel h2 {
+      margin-top: 0;
+      font-size: 1.5rem;
+    }
+    .feedback-panel .correct {
+      color: #4CAF50;
+      font-weight: bold;
+    }
+    .feedback-panel .incorrect {
+      color: #F44336;
+      font-weight: bold;
+    }
+    .feedback-panel .explanation {
+      margin: 1rem 0;
+      font-size: 1.1rem;
+      line-height: 1.5;
+    }
   </style>
 </head>
 <body>
@@ -821,7 +849,9 @@ async function runPracticeTrials() {
       <ol>
         <li>First, you will hear 2 sentences. Listen carefully.</li>
         <li>Next, you will count high-pitched beeps (just like in the main experiment).</li>
+        <li>Then, you will see sentences and decide if they are OLD (ones you heard) or NEW (ones you didn't hear).</li>
       </ol>
+      <p><strong>During practice only, you will see feedback about your answers to help you learn.</strong></p>
       <p>Press the button when you are ready to begin the practice.</p>
       <div class="button-bar">
         <button id="start-practice">Start Practice</button>
@@ -864,6 +894,7 @@ async function runPracticeTrials() {
         <h2>Practice: Memory Test</h2>
         <p>You will now see 4 sentences, one at a time. Some you have just listened to (OLD) and some you did not listen to (NEW).</p>
         <p>Your task is to decide for each sentence: F = OLD (you listened to) or J = NEW (you did not listen to)</p>
+        <p><strong>After each response, you will see feedback to help you understand what OLD and NEW mean.</strong></p>
         <p>Press SPACE when you are ready to begin.</p>
       </div>
     `);
@@ -882,10 +913,14 @@ async function runPracticeTrials() {
       
       const rt = performance.now() - startClock;
       const isOld = studyStimuli.includes(stim);
-      // We don't log practice data
+      const isCorrect = (key === 'f' && isOld) || (key === 'j' && !isOld);
+      
+      // Show feedback panel with correct answer information
+      await showPracticeFeedback(stim.sentence, key, isOld, isCorrect);
     }
     
   } catch (error) {
+    console.error("Practice error:", error);
     // Continue silently if there's an error
   }
   
@@ -901,6 +936,7 @@ async function runPracticeTrials() {
         <li>Identify which sentences are OLD vs. NEW</li>
       </ol>
       <p>Remember, press F for sentences you heard before (OLD) and J for sentences you have not heard (NEW).</p>
+      <p><strong>Note: In the actual experiment, you will NOT receive feedback after your responses.</strong></p>
       <p>Press the button when you are ready to begin the main experiment.</p>
       <div class="button-bar">
         <button id="start-main">Begin Main Experiment</button>
@@ -910,6 +946,55 @@ async function runPracticeTrials() {
   
   return new Promise(resolve => {
     document.getElementById('start-main').onclick = resolve;
+  });
+}
+
+/* New function to show feedback after practice trials */
+async function showPracticeFeedback(sentence, response, isOld, isCorrect) {
+  // Determine the feedback content based on the response and correctness
+  let feedbackTitle, feedbackClass, explanation;
+  
+  if (isCorrect) {
+    feedbackTitle = "Correct!";
+    feedbackClass = "correct";
+  } else {
+    feedbackTitle = "Incorrect";
+    feedbackClass = "incorrect";
+  }
+  
+  if (isOld) {
+    // This was a sentence they heard before
+    explanation = `This sentence <strong>was</strong> one you heard during the listening phase (it was OLD).`;
+    if (response === 'f') {
+      explanation += `<br><br>You correctly pressed F for OLD.`;
+    } else {
+      explanation += `<br><br>You pressed J (for NEW), but the correct answer was F (for OLD).`;
+    }
+  } else {
+    // This was a new sentence they didn't hear before
+    explanation = `This sentence <strong>was not</strong> one you heard during the listening phase (it was NEW).`;
+    if (response === 'j') {
+      explanation += `<br><br>You correctly pressed J for NEW.`;
+    } else {
+      explanation += `<br><br>You pressed F (for OLD), but the correct answer was J (for NEW).`;
+    }
+  }
+  
+  // Display the feedback panel
+  show(`
+    <div class="feedback-panel">
+      <h2 class="${feedbackClass}">${feedbackTitle}</h2>
+      <p><em>"${sentence}"</em></p>
+      <div class="explanation">${explanation}</div>
+      <div class="button-bar">
+        <button id="continue-btn">Continue</button>
+      </div>
+    </div>
+  `);
+  
+  // Wait for the participant to press the continue button
+  return new Promise(resolve => {
+    document.getElementById('continue-btn').onclick = resolve;
   });
 }
 
