@@ -35,7 +35,7 @@
 <h2>3. What does participation involve?</h2>
 <p><strong>Screening (≈1&nbsp;min):</strong> A brief screening will confirm that you: (1) are 18 years or older, (2) can comfortably read instructions and answer survey questions in English, (3) have access to working speakers or headphones and a quiet, distraction-free place to listen, and (4) have normal or corrected-to-normal hearing.<br>
 <strong>Main task (≈14&nbsp;min):</strong> Eligible participants memorise several neutral phrases delivered by audio, then answer recall questions and non‑identifying demographic items.</p>
-<p>You will be paid AUD&nbsp;$7. There are no costs to you.</p>
+<p>You will be paid &nbsp;£2.99. There are no costs to you.</p>
 
 <h2>4. Other relevant information</h2>
 <p>The study aims to enrol approximately 60 participants.</p>
@@ -90,5 +90,6 @@ Manager, Research Governance &amp; Ethics, GPO&nbsp;Box&nbsp;2476, Melbourne&nbs
 
 </body>
 </html>
+
 
 
