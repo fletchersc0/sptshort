@@ -1041,7 +1041,7 @@ async function intro(){
     if (!pid){ alert('Please enter a Prolific ID'); return; }
 
     state.participant = pid;
-    state.difficulty  = Math.random() < 0.5 ? 'E' : 'H';
+    state.difficulty  = Math.random() < 1.0 ? 'E' : 'H'; // MODIFIED LINE: Always assigns 'E' condition
     state.blockOrder  = shuffle(['Chess','Cloud']);
 
     await showInstructions();
